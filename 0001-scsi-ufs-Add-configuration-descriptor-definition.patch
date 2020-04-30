@@ -1,0 +1,90 @@
+From be1ab818f951653047fb153aa734b69e1cad7bc8 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Mon, 1 Apr 2019 10:37:24 +0300
+Subject: [PATCH 01/25] scsi: ufs: Add configuration descriptor definition
+
+The device configuration set by the manufacturer can be modified by
+writing the Configuration Descriptor. So while this is practically the
+only writable descriptor that uses us for provisioning, somehow its
+definition was left behind forsaken.
+
+The configuration descriptor has somehow an obscure structure: a 0x10
+bytes of header, followed by 8 configurable unit descriptors, hence its
+size: 0x10 + 8 x 0x10 = 0x90.
+
+When sending a provisioning query request upiu, we use the index field
+to designate which luns we configure. Using index = 0x0, the
+configuration descriptor header is full, and it allows to provision unit
+descriptors 0 to 7. Index 1 refers to unit descriptors 8 to 15, and so
+on, for all possible 32 luns. for index 1 to 3, we fill only the first 3
+bytes of the configuration descriptor header.
+
+This structure and provisioning mechanism is defined by UFS spec V2.1,
+as well as earlier versions.
+
+While at it, ad the health descriptor index as well.
+
+Change-Id: Ieea54262b0b0c007e02f444269859470aa2fe0af
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs.h      | 29 +++++++++++++++++++++++++++++
+ include/uapi/scsi/ufs/ufs.h |  3 ++-
+ 2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/scsi/ufs/ufs.h b/drivers/scsi/ufs/ufs.h
+index 00df886..ec1b5a7 100644
+--- a/drivers/scsi/ufs/ufs.h
++++ b/drivers/scsi/ufs/ufs.h
+@@ -467,6 +467,35 @@ struct ufs_query_res {
+ #define UFS_VREG_VCCQ2_MIN_UV	   1650000 /* uV */
+ #define UFS_VREG_VCCQ2_MAX_UV	   1950000 /* uV */
+ 
++/* configuration descriptor header parameters offsets in bytes*/
++enum conf_desc_param {
++	CONF_DESC_PARAM_LEN			= 0x0,
++	CONF_DESC_PARAM_TYPE			= 0x1,
++	CONF_DESC_PARAM_CONTINUE		= 0x2,
++	CONF_DESC_PARAM_BOOT_ENABLE		= 0x3,
++	CONF_DESC_PARAM_ACCESS_ENABLE		= 0x4,
++	CONF_DESC_PARAM_INIT_POWER_MODE		= 0x5,
++	CONF_DESC_PARAM_LU_HIGH_PRIORITY	= 0x6,
++	CONF_DESC_PARAM_SECURE_REMOVAL		= 0x7,
++	CONF_DESC_PARAM_INIT_ACTIVE_ICC		= 0x8,
++	CONF_DESC_PARAM_RTC_PERIOD		= 0x9,
++	CONF_DESC_PARAM_RESERVED		= 0xB,
++};
++
++/* Unit descriptor configurable parameters offsets in bytes*/
++enum unit_conf_desc_param {
++	UNITC_DESC_PARAM_LU_ENABLE		= 0x0,
++	UNITC_DESC_PARAM_BOOT_LUN_ID		= 0x1,
++	UNITC_DESC_PARAM_LU_WR_PROTECT		= 0x2,
++	UNITC_DESC_PARAM_MEM_TYPE		= 0x3,
++	UNITC_DESC_PARAM_NUM_ALLOC_UNITS	= 0x4,
++	UNITC_DESC_PARAM_DATA_RELIABILITY	= 0x8,
++	UNITC_DESC_PARAM_LOGICAL_BLK_SIZE	= 0x9,
++	UNITC_DESC_PARAM_PROVISIONING_TYPE	= 0xA,
++	UNITC_DESC_PARAM_CTX_CAPABILITIES	= 0xB,
++	UNITC_DESC_PARAM_RESERVED		= 0xC,
++};
++
+ /*
+  * VCCQ & VCCQ2 current requirement when UFS device is in sleep state
+  * and link is in Hibern8 state.
+diff --git a/include/uapi/scsi/ufs/ufs.h b/include/uapi/scsi/ufs/ufs.h
+index 246cd9a..aeace28 100644
+--- a/include/uapi/scsi/ufs/ufs.h
++++ b/include/uapi/scsi/ufs/ufs.h
+@@ -55,7 +55,8 @@ enum desc_idn {
+ 	QUERY_DESC_IDN_RFU_1		= 0x6,
+ 	QUERY_DESC_IDN_GEOMETRY		= 0x7,
+ 	QUERY_DESC_IDN_POWER		= 0x8,
+-	QUERY_DESC_IDN_RFU_2		= 0x9,
++	QUERY_DESC_IDN_HEALTH		= 0x9,
++	QUERY_DESC_IDN_RFU_2		= 0xA,
+ 	QUERY_DESC_IDN_MAX,
+ };
+ 
+-- 
+2.7.4
+

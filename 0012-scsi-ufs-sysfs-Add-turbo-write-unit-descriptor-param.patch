@@ -1,0 +1,35 @@
+From 1015ccd7567cd95ff73a3d762f8b11ad5bd4fda9 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Tue, 2 Apr 2019 00:04:57 +0300
+Subject: [PATCH 12/25] scsi: ufs-sysfs: Add turbo-write unit descriptor
+ parameters
+
+Change-Id: Icac6dc6b0f6689397acea9769dbc22bd354da466
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs-sysfs.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufs-sysfs.c b/drivers/scsi/ufs/ufs-sysfs.c
+index 116b8f7..1f6c370 100644
+--- a/drivers/scsi/ufs/ufs-sysfs.c
++++ b/drivers/scsi/ufs/ufs-sysfs.c
+@@ -710,6 +710,7 @@ UFS_UNIT_DESC_PARAM(provisioning_type, _PROVISIONING_TYPE, 1);
+ UFS_UNIT_DESC_PARAM(physical_memory_resourse_count, _PHY_MEM_RSRC_CNT, 8);
+ UFS_UNIT_DESC_PARAM(context_capabilities, _CTX_CAPABILITIES, 2);
+ UFS_UNIT_DESC_PARAM(large_unit_granularity, _LARGE_UNIT_SIZE_M1, 1);
++UFS_UNIT_DESC_PARAM(turbo_write_unit_buffer_size, _TW_BUF_ALLOC_UNITS, 4);
+ 
+ static struct attribute *ufs_sysfs_unit_descriptor[] = {
+ 	&dev_attr_boot_lun_id.attr,
+@@ -725,6 +726,7 @@ static struct attribute *ufs_sysfs_unit_descriptor[] = {
+ 	&dev_attr_physical_memory_resourse_count.attr,
+ 	&dev_attr_context_capabilities.attr,
+ 	&dev_attr_large_unit_granularity.attr,
++	&dev_attr_turbo_write_unit_buffer_size.attr,
+ 	NULL,
+ };
+ 
+-- 
+2.7.4
+

@@ -1,0 +1,119 @@
+From e783610ecc349308897d5ee927f41db089dcac04 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Sun, 4 Nov 2018 10:38:46 +0200
+Subject: [PATCH 03/25] scsi: ufs: Add Turbo-Write parameters
+
+Turbo-write (TW) ia a feature that provides a mechanism for the OEM to
+configure an auxiliary non-volatile buffer (TurboWrite Buffer) which
+will be utilized by the device to provide higher performance for Write
+Commands.
+
+Add the applicable new attributes, flags, and descriptor parameters.
+
+Change-Id: I4bf18b42052ef286e6a4aea20fd9e5a8b810f41f
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs.h      | 24 ++++++++++++++++++++----
+ include/uapi/scsi/ufs/ufs.h |  8 +++++++-
+ 2 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/scsi/ufs/ufs.h b/drivers/scsi/ufs/ufs.h
+index 0c537bb..4b41c92 100644
+--- a/drivers/scsi/ufs/ufs.h
++++ b/drivers/scsi/ufs/ufs.h
+@@ -147,11 +147,11 @@ enum desc_header_offset {
+ };
+ 
+ enum ufs_desc_def_size {
+-	QUERY_DESC_DEVICE_DEF_SIZE		= 0x40,
+-	QUERY_DESC_CONFIGURATION_DEF_SIZE	= 0x90,
+-	QUERY_DESC_UNIT_DEF_SIZE		= 0x23,
++	QUERY_DESC_DEVICE_DEF_SIZE		= 0x59,
++	QUERY_DESC_CONFIGURATION_DEF_SIZE	= 0xE6,
++	QUERY_DESC_UNIT_DEF_SIZE		= 0x2D,
+ 	QUERY_DESC_INTERCONNECT_DEF_SIZE	= 0x06,
+-	QUERY_DESC_GEOMETRY_DEF_SIZE		= 0x48,
++	QUERY_DESC_GEOMETRY_DEF_SIZE		= 0x57,
+ 	QUERY_DESC_POWER_DEF_SIZE		= 0x62,
+ };
+ 
+@@ -174,6 +174,8 @@ enum unit_desc_param {
+ 	UNIT_DESC_PARAM_PHY_MEM_RSRC_CNT	= 0x18,
+ 	UNIT_DESC_PARAM_CTX_CAPABILITIES	= 0x20,
+ 	UNIT_DESC_PARAM_LARGE_UNIT_SIZE_M1	= 0x22,
++	UNIT_DESC_PARAM_RESERVED		= 0x23,
++	UNIT_DESC_PARAM_TW_BUF_ALLOC_UNITS	= 0x29,
+ };
+ 
+ /* Device descriptor parameters offsets in bytes*/
+@@ -214,6 +216,10 @@ enum device_desc_param {
+ 	DEVICE_DESC_PARAM_PSA_TMT		= 0x29,
+ 	DEVICE_DESC_PARAM_PRDCT_REV		= 0x2A,
+ 	DEVICE_DESC_PARAM_RESERVED		= 0x2B,
++	DEVICE_DESC_PARAM_EXT_FEATURES		= 0x4F,
++	DEVICE_DESC_PARAM_TW_BUF_USERRDCT	= 0x53,
++	DEVICE_DESC_PARAM_TW_BUF_TYPE		= 0x54,
++	DEVICE_DESC_PARAM_TW_BUF_SIZE		= 0x55,
+ };
+ 
+ /* Interconnect descriptor parameters offsets in bytes*/
+@@ -258,6 +264,12 @@ enum geometry_desc_param {
+ 	GEOMETRY_DESC_PARAM_ENM4_MAX_NUM_UNITS	= 0x3E,
+ 	GEOMETRY_DESC_PARAM_ENM4_CAP_ADJ_FCTR	= 0x42,
+ 	GEOMETRY_DESC_PARAM_OPT_LOG_BLK_SIZE	= 0x44,
++	GEOMETRY_DESC_PARAM_RESERVED		= 0x48,
++	GEOMETRY_DESC_PARAM_TW_BUF_MAXALLOC	= 0x4F,
++	GEOMETRY_DESC_PARAM_TW_MAX_LU_BUFFERS	= 0x53,
++	GEOMETRY_DESC_PARAM_TW_CAP_ADJ_FCTR	= 0x54,
++	GEOMETRY_DESC_PARAM_TW_BUF_USERRDCT	= 0x55,
++	GEOMETRY_DESC_PARAM_TW_BUF_TYPE		= 0x56,
+ };
+ 
+ /* Health descriptor parameters offsets in bytes*/
+@@ -547,6 +559,9 @@ enum conf_desc_param {
+ 	CONF_DESC_PARAM_RPMB_REGION1_SIZE	= 0xD,
+ 	CONF_DESC_PARAM_RPMB_REGION2_SIZE	= 0xE,
+ 	CONF_DESC_PARAM_RPMB_REGION3_SIZE	= 0xF,
++	CONF_DESC_PARAM_TW_BUF_USERREDUCTION	= 0x10,
++	CONF_DESC_PARAM_TW_BUF_TYPE		= 0x11,
++	CONF_DESC_PARAM_TW_BUF_MAXALLOCUNITS	= 0x12,
+ };
+ 
+ /* Unit descriptor configurable parameters offsets in bytes*/
+@@ -561,6 +576,7 @@ enum unit_conf_desc_param {
+ 	UNITC_DESC_PARAM_PROVISIONING_TYPE	= 0xA,
+ 	UNITC_DESC_PARAM_CTX_CAPABILITIES	= 0xB,
+ 	UNITC_DESC_PARAM_RESERVED		= 0xC,
++	UNITC_DESC_PARAM_TW_BUF_ALLOC_UNITS	= 0x16,
+ };
+ 
+ /*
+diff --git a/include/uapi/scsi/ufs/ufs.h b/include/uapi/scsi/ufs/ufs.h
+index 7635dd5..fe9249e 100644
+--- a/include/uapi/scsi/ufs/ufs.h
++++ b/include/uapi/scsi/ufs/ufs.h
+@@ -17,7 +17,9 @@ enum flag_idn {
+ 	QUERY_FLAG_IDN_RESERVED3			= 0x0A,
+ 	QUERY_FLAG_IDN_PERMANENTLY_DISABLE_FW_UPDATE	= 0x0B,
+ 	QUERY_FLAG_IDN_RESERVED4			= 0x0C,
+-	QUERY_FLAG_IDN_RESERVED5			= 0x0E,
++	QUERY_FLAG_IDN_TW_EN				= 0x0E,
++	QUERY_FLAG_IDN_TW_FLUSH				= 0x0F,
++	QUERY_FLAG_IDN_TW_FLUSH_HIBERN			= 0x10,
+ };
+ 
+ /* Attribute idn for Query requests */
+@@ -50,6 +52,10 @@ enum attr_idn {
+ 	QUERY_ATTR_IDN_HIGH_TEMP		= 0x19,
+ 	QUERY_ATTR_IDN_LOW_TEMP			= 0x1A,
+ 	QUERY_ATTR_IDN_RESERVED4		= 0x1B,
++	QUERY_ATTR_IDN_TW_FLUSH_STATUS		= 0x1C,
++	QUERY_ATTR_IDN_TW_AVAIL_BUF_SIZE	= 0x1D,
++	QUERY_ATTR_IDN_TW_LIFE_TIME_EST		= 0x1E,
++	QUERY_ATTR_IDN_TW_CUR_BUF_SIZE		= 0x1F,
+ };
+ 
+ #define QUERY_ATTR_IDN_BOOT_LU_EN_MAX	0x02
+-- 
+2.7.4
+

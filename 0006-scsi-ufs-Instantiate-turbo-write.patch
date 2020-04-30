@@ -1,0 +1,74 @@
+From 5c15c1a52828d0a1d5169b48aeff5272b7493dd2 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Mon, 1 Apr 2019 17:29:56 +0300
+Subject: [PATCH 06/25] scsi: ufs: Instantiate turbo-write
+
+Check on init if the device supports turbo-write,
+and set flush_on_hibern8 in case it does.
+
+Change-Id: I2a7d482104c23dca43ebe0daba55e7de162bb9b3
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufshcd.c | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufshcd.c b/drivers/scsi/ufs/ufshcd.c
+index 99f5e7a..73657b9 100644
+--- a/drivers/scsi/ufs/ufshcd.c
++++ b/drivers/scsi/ufs/ufshcd.c
+@@ -5042,6 +5042,42 @@ out:
+ 
+ }
+ 
++static int ufshcd_get_tw_mode(struct ufs_hba *hba, u8 *desc_buf)
++{
++	int err = -EINVAL;
++	u32 val = 0;
++
++	if (hba->dev_info.w_spec_version < 0x300)
++		goto out;
++
++	if (hba->desc_size.dev_desc < DEVICE_DESC_PARAM_TW_BUF_SIZE + 4)
++		goto out;
++
++	/* bit[8] of dExtendedUFSFeaturesSupport indicate if the device
++	 * supports Turbo Write
++	 */
++	val = get_unaligned_be32(&desc_buf[DEVICE_DESC_PARAM_EXT_FEATURES]);
++	if (!(val & BIT(8)))
++		goto out;
++
++	/* we currently support only shared buffer mode */
++	if (!desc_buf[DEVICE_DESC_PARAM_TW_BUF_TYPE])
++		goto out;
++
++	val = get_unaligned_be32(&desc_buf[DEVICE_DESC_PARAM_TW_BUF_SIZE]);
++	if (!val)
++		goto out;
++
++	hba->tw_size = val;
++	err = ufshcd_turbo_write_enable_flush_on_hibern8(hba);
++
++out:
++	if (err)
++		hba->caps &= ~UFSHCD_CAP_TURBO_WRITE;
++
++	return err;
++}
++
+ /**
+  * ufshcd_read_string_desc - read string descriptor
+  * @hba: pointer to adapter instance
+@@ -9265,6 +9301,9 @@ static int ufs_read_device_desc_data(struct ufs_hba *hba)
+ 		desc_buf[DEVICE_DESC_PARAM_SPEC_VER] << 8 |
+ 		desc_buf[DEVICE_DESC_PARAM_SPEC_VER + 1];
+ 
++	if (ufshcd_get_tw_mode(hba, desc_buf))
++		dev_info(hba->dev, "Failed reading turbo-write config\n");
++
+ 	return 0;
+ }
+ 
+-- 
+2.7.4
+

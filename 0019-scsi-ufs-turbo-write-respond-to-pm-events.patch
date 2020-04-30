@@ -1,0 +1,45 @@
+From 0f6a4fb08bb63786110c410c7d074489612c4105 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Tue, 2 Apr 2019 17:14:19 +0300
+Subject: [PATCH 19/25] scsi: ufs: turbo-write: respond to pm events
+
+enable hibern8 flush on resume, and on runtime suspend. Disable it on
+system suspend.
+
+Change-Id: Ibfb457cf4926ecb695d7aeb33e213826b1b70854
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufshcd.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufshcd.c b/drivers/scsi/ufs/ufshcd.c
+index e5fcc1a..87881e5 100644
+--- a/drivers/scsi/ufs/ufshcd.c
++++ b/drivers/scsi/ufs/ufshcd.c
+@@ -10836,6 +10836,7 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
+ 			/* make sure that auto bkops is disabled */
+ 			ufshcd_disable_auto_bkops(hba);
+ 		}
++		ufshcd_turbo_write_enable_flush_on_hibern8(hba);
+ 	}
+ 
+ 	if ((req_dev_pwr_mode != hba->curr_dev_pwr_mode) &&
+@@ -10843,6 +10844,7 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
+ 	       !ufshcd_is_runtime_pm(pm_op))) {
+ 		/* ensure that bkops is disabled */
+ 		ufshcd_disable_auto_bkops(hba);
++		ufshcd_turbo_write_disable_flush_on_hibern8(hba);
+ 		ret = ufshcd_set_dev_pwr_mode(hba, req_dev_pwr_mode);
+ 		if (ret)
+ 			goto enable_gating;
+@@ -11018,6 +11020,7 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
+ skip_dev_ops:
+ 	/* Schedule clock gating in case of no access to UFS device yet */
+ 	ufshcd_release_all(hba);
++	ufshcd_turbo_write_enable_flush_on_hibern8(hba);
+ 	goto out;
+ 
+ set_old_link_state:
+-- 
+2.7.4
+

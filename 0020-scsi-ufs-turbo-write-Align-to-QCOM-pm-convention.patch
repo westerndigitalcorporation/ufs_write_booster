@@ -1,0 +1,134 @@
+From 42314026ac72970916fde895b111bbb2ed3e1ea3 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Sat, 6 Apr 2019 12:33:02 +0300
+Subject: [PATCH 20/25] scsi: ufs: turbo-write: Align to QCOM pm convention
+
+QCOM relates to turbo-write buffer flushing much like urgent bkops.
+According to their runtime suspend flow (enter after 3msec idle),
+a deeper sleep state that involve sending SSU is enabled only if urgent
+bkops is not needed.
+
+Now that turbo-write is in play - treat it just the same: send SSU
+if urgent bkops is not needed, nor urgent turbo-write flush is needed.
+They define this critical threshold to be 70% of the turbo-write buffer.
+
+Checking that the turbo-write buffer might not be enough. If the rest of
+the user area is full, the device is not able to fold the content of the
+turbo-write buffer anyway, so need to check The
+bTurboWriteBufferFlushStatus attribute as well. Add a TODO so we'll keep
+this in mind.
+
+Change-Id: I66f7f939b0b154358e5720e328f9d501ebac05e4
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufshcd.c | 47 ++++++++++++++++++++++++++++++++++++++++++++++-
+ drivers/scsi/ufs/ufshcd.h |  3 +++
+ 2 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/scsi/ufs/ufshcd.c b/drivers/scsi/ufs/ufshcd.c
+index 87881e5..bceebb8 100644
+--- a/drivers/scsi/ufs/ufshcd.c
++++ b/drivers/scsi/ufs/ufshcd.c
+@@ -5054,6 +5054,7 @@ static int ufshcd_get_tw_mode(struct ufs_hba *hba, u8 *desc_buf)
+ 	hba->tw_size = val;
+ 	err = ufshcd_turbo_write_enable_flush_on_hibern8(hba);
+ 	atomic_set(&hba->tw_urgent_flush_ref, 0);
++	hba->tw_urgent_flush_lvl = 3;
+ 
+ out:
+ 	if (err)
+@@ -6343,6 +6344,45 @@ static int ufshcd_verify_dev_init(struct ufs_hba *hba)
+ 	return err;
+ }
+ 
++static inline int ufshcd_get_tw_buffer_status(struct ufs_hba *hba, u32 *status)
++{
++	return ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,
++				       QUERY_ATTR_IDN_TW_AVAIL_BUF_SIZE, 0, 0,
++				       status);
++}
++
++static int ufshcd_tw_flush_ctrl(struct ufs_hba *hba)
++{
++	int err;
++	u32 lvl = 0;
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	err = ufshcd_get_tw_buffer_status(hba, &lvl);
++	if (err) {
++		dev_err(hba->dev, "failed to get tw buffer status %d\n", err);
++		goto out;
++	} else if (lvl > UFS_TW_BUFFER_LVL_MAX) {
++		dev_err(hba->dev, "invalid tw buffer status %d\n", lvl);
++		err = -EINVAL;
++		goto out;
++	}
++
++	/* TODO: Checking that the turbo-write buffer might not be enough.
++	 * If the rest of the user area is full, the device is not able to fold
++	 * the content of the turbo-write buffer anyway, so need to check the
++	 * bTurboWriteBufferFlushStatus attribute as well.
++	 * Leave it as it is for now.
++	 */
++	if (lvl <= hba->tw_urgent_flush_lvl)
++		err = ufshcd_turbo_write_enable_flush_on_hibern8(hba);
++	else
++		err = ufshcd_turbo_write_disable_flush_on_hibern8(hba);
++out:
++	return err;
++}
++
+ static void ufshcd_turbo_write_exception_event_handler(struct ufs_hba *hba)
+ {
+ 
+@@ -10781,6 +10821,7 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
+ 	enum ufs_pm_level pm_lvl;
+ 	enum ufs_dev_pwr_mode req_dev_pwr_mode;
+ 	enum uic_link_state req_link_state;
++	bool tw_flush_enabled = false;
+ 
+ 	hba->pm_op_in_progress = 1;
+ 	if (!ufshcd_is_shutdown_pm(pm_op)) {
+@@ -10836,11 +10877,15 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
+ 			/* make sure that auto bkops is disabled */
+ 			ufshcd_disable_auto_bkops(hba);
+ 		}
+-		ufshcd_turbo_write_enable_flush_on_hibern8(hba);
++		ret = ufshcd_tw_flush_ctrl(hba);
++		if (ret)
++			goto enable_gating;
++		tw_flush_enabled = hba->tw_flush & UFS_TW_FLUSH_HIBERN8;
+ 	}
+ 
+ 	if ((req_dev_pwr_mode != hba->curr_dev_pwr_mode) &&
+ 	     ((ufshcd_is_runtime_pm(pm_op) && !hba->auto_bkops_enabled) ||
++	      (ufshcd_is_runtime_pm(pm_op) && !tw_flush_enabled) ||
+ 	       !ufshcd_is_runtime_pm(pm_op))) {
+ 		/* ensure that bkops is disabled */
+ 		ufshcd_disable_auto_bkops(hba);
+diff --git a/drivers/scsi/ufs/ufshcd.h b/drivers/scsi/ufs/ufshcd.h
+index d3ed93e..56115b4 100644
+--- a/drivers/scsi/ufs/ufshcd.h
++++ b/drivers/scsi/ufs/ufshcd.h
+@@ -419,6 +419,8 @@ enum tw_flush_mode {
+ 	UFS_TW_FLUSH_HIBERN8		= BIT(1),
+ };
+ 
++#define UFS_TW_BUFFER_LVL_MAX 10
++
+ /* clock gating state  */
+ enum clk_gating_state {
+ 	CLKS_OFF,
+@@ -1077,6 +1079,7 @@ struct ufs_hba {
+ 	int tw_flush;
+ 	bool tw_enabled;
+ 	atomic_t tw_urgent_flush_ref;
++	unsigned int tw_urgent_flush_lvl;
+ };
+ 
+ static inline void ufshcd_mark_shutdown_ongoing(struct ufs_hba *hba)
+-- 
+2.7.4
+

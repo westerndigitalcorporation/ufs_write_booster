@@ -1,0 +1,36 @@
+From 6a90692bbae47aea9f50009a33649600e0052902 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Tue, 2 Apr 2019 15:46:04 +0300
+Subject: [PATCH 17/25] scsi: ufs: Update UFS 3.0 new exception event status
+ bits
+
+for the time being, do nothing with those new bits.
+
+Change-Id: Icd6923f134f4b903fb6f29092234bbec627e1d7c
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs.h | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/scsi/ufs/ufs.h b/drivers/scsi/ufs/ufs.h
+index 4b41c92..75be5bc 100644
+--- a/drivers/scsi/ufs/ufs.h
++++ b/drivers/scsi/ufs/ufs.h
+@@ -320,8 +320,12 @@ enum power_desc_param_offset {
+ 
+ /* Exception event mask values */
+ enum {
+-	MASK_EE_STATUS		= 0xFFFF,
+-	MASK_EE_URGENT_BKOPS	= (1 << 2),
++	MASK_EE_STATUS			= 0xFFFF,
++	MASK_EE_DYNCAP_NEEDED		= (1 << 0),
++	MASK_EE_SYSPOOL_EXHAUSTED	= (1 << 1),
++	MASK_EE_URGENT_BKOPS		= (1 << 2),
++	MASK_EE_TOO_HIGH_TEMP		= (1 << 3),
++	MASK_EE_TOO_LOW_TEMP		= (1 << 4),
+ };
+ 
+ /* Background operation status */
+-- 
+2.7.4
+

@@ -1,0 +1,30 @@
+From 896b1923536426e67370f12b089710a2aa733a88 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Wed, 5 Jun 2019 10:51:11 +0300
+Subject: [PATCH 13/25] [DEBUG] scsi: ufs: Increase the query request timeout
+
+As there are so many query requests flying around now,
+allow some more time for device management requests to obtain their tag
+
+Change-Id: I04c292e69d41cc4f718e93bcc846ab31b8f42626
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufshcd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/scsi/ufs/ufshcd.c b/drivers/scsi/ufs/ufshcd.c
+index a38e4ef..3adff42 100644
+--- a/drivers/scsi/ufs/ufshcd.c
++++ b/drivers/scsi/ufs/ufshcd.c
+@@ -221,7 +221,7 @@ static void ufshcd_update_uic_error_cnt(struct ufs_hba *hba, u32 reg, int type)
+ /* Query request retries */
+ #define QUERY_REQ_RETRIES 3
+ /* Query request timeout */
+-#define QUERY_REQ_TIMEOUT 1500 /* 1.5 seconds */
++#define QUERY_REQ_TIMEOUT 3000 /* 3 seconds */
+ 
+ /* Task management command timeout */
+ #define TM_CMD_TIMEOUT	100 /* msecs */
+-- 
+2.7.4
+

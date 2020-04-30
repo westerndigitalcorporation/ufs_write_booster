@@ -1,0 +1,184 @@
+From 5599cb4fc770590556308ef81ce539686e8c9961 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Mon, 1 Apr 2019 11:40:46 +0300
+Subject: [PATCH 02/25] scsi: ufs: Update UFS 3.0 new attributes and descriptor
+ fields
+
+UFS spec v3.0 add 4 more fields to the configuration descriptor header.
+Those new fields uses its reserved spots so the overall descriptor size
+is not changed.
+It also add 4 new attributes - mainly that concern temperature sensing.
+
+Also add some missing descriptor definitions.
+
+Change-Id: I88019b1e1413414864addca83694a3093334e0ad
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs.h      | 69 ++++++++++++++++++++++++++++++++++++++++++++-
+ include/uapi/scsi/ufs/ufs.h | 36 ++++++++++++++---------
+ 2 files changed, 91 insertions(+), 14 deletions(-)
+
+diff --git a/drivers/scsi/ufs/ufs.h b/drivers/scsi/ufs/ufs.h
+index ec1b5a7..0c537bb 100644
+--- a/drivers/scsi/ufs/ufs.h
++++ b/drivers/scsi/ufs/ufs.h
+@@ -151,7 +151,7 @@ enum ufs_desc_def_size {
+ 	QUERY_DESC_CONFIGURATION_DEF_SIZE	= 0x90,
+ 	QUERY_DESC_UNIT_DEF_SIZE		= 0x23,
+ 	QUERY_DESC_INTERCONNECT_DEF_SIZE	= 0x06,
+-	QUERY_DESC_GEOMETRY_DEF_SIZE		= 0x44,
++	QUERY_DESC_GEOMETRY_DEF_SIZE		= 0x48,
+ 	QUERY_DESC_POWER_DEF_SIZE		= 0x62,
+ };
+ 
+@@ -164,6 +164,7 @@ enum unit_desc_param {
+ 	UNIT_DESC_PARAM_BOOT_LUN_ID		= 0x4,
+ 	UNIT_DESC_PARAM_LU_WR_PROTECT		= 0x5,
+ 	UNIT_DESC_PARAM_LU_Q_DEPTH		= 0x6,
++	UNIT_DESC_PARAM_PSA_SENSITIVE		= 0x7,
+ 	UNIT_DESC_PARAM_MEM_TYPE		= 0x8,
+ 	UNIT_DESC_PARAM_DATA_RELIABILITY	= 0x9,
+ 	UNIT_DESC_PARAM_LOGICAL_BLK_SIZE	= 0xA,
+@@ -204,6 +205,68 @@ enum device_desc_param {
+ 	DEVICE_DESC_PARAM_UD_LEN		= 0x1B,
+ 	DEVICE_DESC_PARAM_RTT_CAP		= 0x1C,
+ 	DEVICE_DESC_PARAM_FRQ_RTC		= 0x1D,
++	DEVICE_DESC_PARAM_UFS_FEAT		= 0x1F,
++	DEVICE_DESC_PARAM_FFU_TMT		= 0x20,
++	DEVICE_DESC_PARAM_Q_DPTH		= 0x21,
++	DEVICE_DESC_PARAM_DEV_VER		= 0x22,
++	DEVICE_DESC_PARAM_NUM_SEC_WPA		= 0x24,
++	DEVICE_DESC_PARAM_PSA_MAX_DATA		= 0x25,
++	DEVICE_DESC_PARAM_PSA_TMT		= 0x29,
++	DEVICE_DESC_PARAM_PRDCT_REV		= 0x2A,
++	DEVICE_DESC_PARAM_RESERVED		= 0x2B,
++};
++
++/* Interconnect descriptor parameters offsets in bytes*/
++enum interconnect_desc_param {
++	INTERCONNECT_DESC_PARAM_LEN		= 0x0,
++	INTERCONNECT_DESC_PARAM_TYPE		= 0x1,
++	INTERCONNECT_DESC_PARAM_UNIPRO_VER	= 0x2,
++	INTERCONNECT_DESC_PARAM_MPHY_VER	= 0x4,
++};
++
++/* Geometry descriptor parameters offsets in bytes*/
++enum geometry_desc_param {
++	GEOMETRY_DESC_PARAM_LEN			= 0x0,
++	GEOMETRY_DESC_PARAM_TYPE		= 0x1,
++	GEOMETRY_DESC_PARAM_DEV_CAP		= 0x4,
++	GEOMETRY_DESC_PARAM_MAX_NUM_LUN		= 0xC,
++	GEOMETRY_DESC_PARAM_SEG_SIZE		= 0xD,
++	GEOMETRY_DESC_PARAM_ALLOC_UNIT_SIZE	= 0x11,
++	GEOMETRY_DESC_PARAM_MIN_BLK_SIZE	= 0x12,
++	GEOMETRY_DESC_PARAM_OPT_RD_BLK_SIZE	= 0x13,
++	GEOMETRY_DESC_PARAM_OPT_WR_BLK_SIZE	= 0x14,
++	GEOMETRY_DESC_PARAM_MAX_IN_BUF_SIZE	= 0x15,
++	GEOMETRY_DESC_PARAM_MAX_OUT_BUF_SIZE	= 0x16,
++	GEOMETRY_DESC_PARAM_RPMB_RW_SIZE	= 0x17,
++	GEOMETRY_DESC_PARAM_DYN_CAP_RSRC_PLC	= 0x18,
++	GEOMETRY_DESC_PARAM_DATA_ORDER		= 0x19,
++	GEOMETRY_DESC_PARAM_MAX_NUM_CTX		= 0x1A,
++	GEOMETRY_DESC_PARAM_TAG_UNIT_SIZE	= 0x1B,
++	GEOMETRY_DESC_PARAM_TAG_RSRC_SIZE	= 0x1C,
++	GEOMETRY_DESC_PARAM_SEC_RM_TYPES	= 0x1D,
++	GEOMETRY_DESC_PARAM_MEM_TYPES		= 0x1E,
++	GEOMETRY_DESC_PARAM_SCM_MAX_NUM_UNITS	= 0x20,
++	GEOMETRY_DESC_PARAM_SCM_CAP_ADJ_FCTR	= 0x24,
++	GEOMETRY_DESC_PARAM_NPM_MAX_NUM_UNITS	= 0x26,
++	GEOMETRY_DESC_PARAM_NPM_CAP_ADJ_FCTR	= 0x2A,
++	GEOMETRY_DESC_PARAM_ENM1_MAX_NUM_UNITS	= 0x2C,
++	GEOMETRY_DESC_PARAM_ENM1_CAP_ADJ_FCTR	= 0x30,
++	GEOMETRY_DESC_PARAM_ENM2_MAX_NUM_UNITS	= 0x32,
++	GEOMETRY_DESC_PARAM_ENM2_CAP_ADJ_FCTR	= 0x36,
++	GEOMETRY_DESC_PARAM_ENM3_MAX_NUM_UNITS	= 0x38,
++	GEOMETRY_DESC_PARAM_ENM3_CAP_ADJ_FCTR	= 0x3C,
++	GEOMETRY_DESC_PARAM_ENM4_MAX_NUM_UNITS	= 0x3E,
++	GEOMETRY_DESC_PARAM_ENM4_CAP_ADJ_FCTR	= 0x42,
++	GEOMETRY_DESC_PARAM_OPT_LOG_BLK_SIZE	= 0x44,
++};
++
++/* Health descriptor parameters offsets in bytes*/
++enum health_desc_param {
++	HEALTH_DESC_PARAM_LEN			= 0x0,
++	HEALTH_DESC_PARAM_TYPE			= 0x1,
++	HEALTH_DESC_PARAM_EOL_INFO		= 0x2,
++	HEALTH_DESC_PARAM_LIFE_TIME_EST_A	= 0x3,
++	HEALTH_DESC_PARAM_LIFE_TIME_EST_B	= 0x4,
+ };
+ 
+ /*
+@@ -480,6 +543,10 @@ enum conf_desc_param {
+ 	CONF_DESC_PARAM_INIT_ACTIVE_ICC		= 0x8,
+ 	CONF_DESC_PARAM_RTC_PERIOD		= 0x9,
+ 	CONF_DESC_PARAM_RESERVED		= 0xB,
++	CONF_DESC_PARAM_RPMB_ENABLE		= 0xC,
++	CONF_DESC_PARAM_RPMB_REGION1_SIZE	= 0xD,
++	CONF_DESC_PARAM_RPMB_REGION2_SIZE	= 0xE,
++	CONF_DESC_PARAM_RPMB_REGION3_SIZE	= 0xF,
+ };
+ 
+ /* Unit descriptor configurable parameters offsets in bytes*/
+diff --git a/include/uapi/scsi/ufs/ufs.h b/include/uapi/scsi/ufs/ufs.h
+index aeace28..7635dd5 100644
+--- a/include/uapi/scsi/ufs/ufs.h
++++ b/include/uapi/scsi/ufs/ufs.h
+@@ -1,19 +1,23 @@
+ #ifndef UAPI_UFS_H_
+ #define UAPI_UFS_H_
+ 
+-#define MAX_QUERY_IDN	0x12
++#define MAX_QUERY_IDN	0x1B
+ 
+ /* Flag idn for Query Requests*/
+ enum flag_idn {
+-	QUERY_FLAG_IDN_FDEVICEINIT		= 0x01,
+-	QUERY_FLAG_IDN_PERMANENT_WPE		= 0x02,
+-	QUERY_FLAG_IDN_PWR_ON_WPE		= 0x03,
+-	QUERY_FLAG_IDN_BKOPS_EN			= 0x04,
+-	QUERY_FLAG_IDN_RESERVED1		= 0x05,
+-	QUERY_FLAG_IDN_PURGE_ENABLE		= 0x06,
+-	QUERY_FLAG_IDN_RESERVED2		= 0x07,
+-	QUERY_FLAG_IDN_FPHYRESOURCEREMOVAL      = 0x08,
+-	QUERY_FLAG_IDN_BUSY_RTC			= 0x09,
++	QUERY_FLAG_IDN_FDEVICEINIT			= 0x01,
++	QUERY_FLAG_IDN_PERMANENT_WPE			= 0x02,
++	QUERY_FLAG_IDN_PWR_ON_WPE			= 0x03,
++	QUERY_FLAG_IDN_BKOPS_EN				= 0x04,
++	QUERY_FLAG_IDN_LIFE_SPAN_MODE_ENABLE		= 0x05,
++	QUERY_FLAG_IDN_PURGE_ENABLE			= 0x06,
++	QUERY_FLAG_IDN_RESERVED2			= 0x07,
++	QUERY_FLAG_IDN_FPHYRESOURCEREMOVAL		= 0x08,
++	QUERY_FLAG_IDN_BUSY_RTC				= 0x09,
++	QUERY_FLAG_IDN_RESERVED3			= 0x0A,
++	QUERY_FLAG_IDN_PERMANENTLY_DISABLE_FW_UPDATE	= 0x0B,
++	QUERY_FLAG_IDN_RESERVED4			= 0x0C,
++	QUERY_FLAG_IDN_RESERVED5			= 0x0E,
+ };
+ 
+ /* Attribute idn for Query requests */
+@@ -36,12 +40,18 @@ enum attr_idn {
+ 	QUERY_ATTR_IDN_SECONDS_PASSED		= 0x0F,
+ 	QUERY_ATTR_IDN_CNTX_CONF		= 0x10,
+ 	QUERY_ATTR_IDN_CORR_PRG_BLK_NUM		= 0x11,
++	QUERY_ATTR_IDN_RESERVED2		= 0x12,
++	QUERY_ATTR_IDN_RESERVED3		= 0x13,
++	QUERY_ATTR_IDN_FFU_STATUS		= 0x14,
++	QUERY_ATTR_IDN_PSA_STATE		= 0x15,
++	QUERY_ATTR_IDN_PSA_DATA_SIZE		= 0x16,
+ 	QUERY_ATTR_IDN_REF_CLK_GATING_WAIT_TIME	= 0x17,
++	QUERY_ATTR_IDN_CASE_TEMP		= 0x18,
++	QUERY_ATTR_IDN_HIGH_TEMP		= 0x19,
++	QUERY_ATTR_IDN_LOW_TEMP			= 0x1A,
++	QUERY_ATTR_IDN_RESERVED4		= 0x1B,
+ };
+ 
+-#define QUERY_ATTR_IDN_REF_CLK_GATING_WAIT_TIME \
+-				QUERY_ATTR_IDN_REF_CLK_GATING_WAIT_TIME
+-
+ #define QUERY_ATTR_IDN_BOOT_LU_EN_MAX	0x02
+ 
+ /* Descriptor idn for Query requests */
+-- 
+2.7.4
+

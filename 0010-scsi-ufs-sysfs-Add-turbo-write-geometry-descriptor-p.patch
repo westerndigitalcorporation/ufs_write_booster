@@ -1,0 +1,44 @@
+From 65c77e4b6e5a6c834af95c48789c0869e6323c28 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Tue, 21 Aug 2018 17:39:26 +0300
+Subject: [PATCH 10/25] scsi: ufs-sysfs: Add turbo-write geometry descriptor
+ parameters
+
+Change-Id: Ie95554767cb4e516c72c0625fa71e70878e79974
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs-sysfs.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufs-sysfs.c b/drivers/scsi/ufs/ufs-sysfs.c
+index a9cdbaf..7df088b 100644
+--- a/drivers/scsi/ufs/ufs-sysfs.c
++++ b/drivers/scsi/ufs/ufs-sysfs.c
+@@ -312,6 +312,12 @@ UFS_GEOMETRY_DESC_PARAM(enh4_memory_max_alloc_units,
+ 	_ENM4_MAX_NUM_UNITS, 4);
+ UFS_GEOMETRY_DESC_PARAM(enh4_memory_capacity_adjustment_factor,
+ 	_ENM4_CAP_ADJ_FCTR, 2);
++UFS_GEOMETRY_DESC_PARAM(turbo_write_max_size, _TW_BUF_MAXALLOC, 4);
++UFS_GEOMETRY_DESC_PARAM(turbo_write_max_lu_buffers, _TW_MAX_LU_BUFFERS, 1);
++UFS_GEOMETRY_DESC_PARAM(turbo_write_capacity_adjustment_factor,
++	_TW_CAP_ADJ_FCTR, 1);
++UFS_GEOMETRY_DESC_PARAM(turbo_write_geo_reduction_type, _TW_BUF_USERRDCT, 1);
++UFS_GEOMETRY_DESC_PARAM(turbo_write_geo_buffer_type, _TW_BUF_TYPE, 1);
+ 
+ static struct attribute *ufs_sysfs_geometry_descriptor[] = {
+ 	&dev_attr_raw_device_capacity.attr,
+@@ -343,6 +349,11 @@ static struct attribute *ufs_sysfs_geometry_descriptor[] = {
+ 	&dev_attr_enh3_memory_capacity_adjustment_factor.attr,
+ 	&dev_attr_enh4_memory_max_alloc_units.attr,
+ 	&dev_attr_enh4_memory_capacity_adjustment_factor.attr,
++	&dev_attr_turbo_write_max_size.attr,
++	&dev_attr_turbo_write_max_lu_buffers.attr,
++	&dev_attr_turbo_write_capacity_adjustment_factor.attr,
++	&dev_attr_turbo_write_geo_reduction_type.attr,
++	&dev_attr_turbo_write_geo_buffer_type.attr,
+ 	NULL,
+ };
+ 
+-- 
+2.7.4
+

@@ -1,0 +1,40 @@
+From b69eb06525b3ba38e21630daeb4d0652356282b1 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Tue, 21 Aug 2018 17:27:57 +0300
+Subject: [PATCH 09/25] scsi: ufs-sysfs: Add turbo-write attribute
+
+Change-Id: I501df149930c79dc12b7e13c072bc6760b4f43a3
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs-sysfs.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufs-sysfs.c b/drivers/scsi/ufs/ufs-sysfs.c
+index 26f2303..a9cdbaf 100644
+--- a/drivers/scsi/ufs/ufs-sysfs.c
++++ b/drivers/scsi/ufs/ufs-sysfs.c
+@@ -614,6 +614,10 @@ UFS_ATTRIBUTE(exception_event_status, _EE_STATUS);
+ UFS_ATTRIBUTE(ffu_status, _FFU_STATUS);
+ UFS_ATTRIBUTE(psa_state, _PSA_STATE);
+ UFS_ATTRIBUTE(psa_data_size, _PSA_DATA_SIZE);
++UFS_ATTRIBUTE(turbo_write_flush_status, _TW_FLUSH_STATUS);
++UFS_ATTRIBUTE(turbo_write_avail_size, _TW_AVAIL_BUF_SIZE);
++UFS_ATTRIBUTE(turbo_write_lifetime_estimate, _TW_LIFE_TIME_EST);
++UFS_ATTRIBUTE(turbo_write_current_size, _TW_CUR_BUF_SIZE);
+ 
+ static struct attribute *ufs_sysfs_attributes[] = {
+ 	&dev_attr_boot_lun_enabled.attr,
+@@ -632,6 +636,10 @@ static struct attribute *ufs_sysfs_attributes[] = {
+ 	&dev_attr_ffu_status.attr,
+ 	&dev_attr_psa_state.attr,
+ 	&dev_attr_psa_data_size.attr,
++	&dev_attr_turbo_write_flush_status.attr,
++	&dev_attr_turbo_write_avail_size.attr,
++	&dev_attr_turbo_write_lifetime_estimate.attr,
++	&dev_attr_turbo_write_current_size.attr,
+ 	NULL,
+ };
+ 
+-- 
+2.7.4
+

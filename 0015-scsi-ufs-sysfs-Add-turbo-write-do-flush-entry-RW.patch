@@ -1,0 +1,78 @@
+From 91e5a4b5f50714470aef52d6ed18866bbf97a32d Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Tue, 21 Aug 2018 18:51:15 +0300
+Subject: [PATCH 15/25] scsi: ufs-sysfs: Add turbo-write-do-flush entry (RW)
+
+This entry performs explicit flush of the turbo-write buffer.
+
+Change-Id: Ifc0c3848523abc450af3bffd8b8afc0596d4c8ad
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs-sysfs.c | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufs-sysfs.c b/drivers/scsi/ufs/ufs-sysfs.c
+index 9671c76..a6ef919 100644
+--- a/drivers/scsi/ufs/ufs-sysfs.c
++++ b/drivers/scsi/ufs/ufs-sysfs.c
+@@ -150,6 +150,41 @@ static ssize_t turbo_write_do_enable_store(struct device *dev,
+ 	return count;
+ }
+ 
++static ssize_t turbo_write_do_flush_show(struct device *dev,
++					 struct device_attribute *attr,
++					 char *buf)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++	const char *msg = "usage: #echo 1 > turbo_write_do_flush";
++	int len = sizeof("usage: #echo 1 > turbo_write_do_flush");
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	return snprintf(buf, len + 1, "%s\n", msg);
++}
++
++static ssize_t turbo_write_do_flush_store(struct device *dev,
++					  struct device_attribute *attr,
++					  const char *buf, size_t count)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++	unsigned int flush_flag;
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	if (kstrtouint(buf, 0, &flush_flag))
++		return -EINVAL;
++
++	if (flush_flag)
++		ufshcd_turbo_write_enable_flush_explicitly(hba);
++	else
++		ufshcd_turbo_write_disable_flush_explicitly(hba);
++
++	return count;
++}
++
+ static DEVICE_ATTR_RW(rpm_lvl);
+ static DEVICE_ATTR_RO(rpm_target_dev_state);
+ static DEVICE_ATTR_RO(rpm_target_link_state);
+@@ -157,6 +192,7 @@ static DEVICE_ATTR_RW(spm_lvl);
+ static DEVICE_ATTR_RO(spm_target_dev_state);
+ static DEVICE_ATTR_RO(spm_target_link_state);
+ static DEVICE_ATTR_RW(turbo_write_do_enable);
++static DEVICE_ATTR_RW(turbo_write_do_flush);
+ 
+ static struct attribute *ufs_sysfs_ufshcd_attrs[] = {
+ 	&dev_attr_rpm_lvl.attr,
+@@ -166,6 +202,7 @@ static struct attribute *ufs_sysfs_ufshcd_attrs[] = {
+ 	&dev_attr_spm_target_dev_state.attr,
+ 	&dev_attr_spm_target_link_state.attr,
+ 	&dev_attr_turbo_write_do_enable.attr,
++	&dev_attr_turbo_write_do_flush.attr,
+ 	NULL
+ };
+ 
+-- 
+2.7.4
+

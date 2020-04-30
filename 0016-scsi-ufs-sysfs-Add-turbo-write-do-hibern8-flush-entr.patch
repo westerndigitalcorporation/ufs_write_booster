@@ -1,0 +1,77 @@
+From 66d8be4c09033d4d23262a24c883466d9652a7c5 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Tue, 2 Apr 2019 14:36:29 +0300
+Subject: [PATCH 16/25] scsi: ufs-sysfs: Add turbo-write-do-hibern8-flush entry
+
+This entry sets/clear the turbo-write hibern8 flush option.
+
+Change-Id: I46ec9427c2e5a3d7a58ed821cc860a5070b5670b
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs-sysfs.c | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufs-sysfs.c b/drivers/scsi/ufs/ufs-sysfs.c
+index a6ef919..046c124 100644
+--- a/drivers/scsi/ufs/ufs-sysfs.c
++++ b/drivers/scsi/ufs/ufs-sysfs.c
+@@ -185,6 +185,40 @@ static ssize_t turbo_write_do_flush_store(struct device *dev,
+ 	return count;
+ }
+ 
++static ssize_t turbo_write_do_hibern8_flush_show(struct device *dev,
++						 struct device_attribute *attr,
++						 char *buf)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	return sprintf(buf, "%d\n", hba->tw_flush);
++}
++
++static ssize_t
++turbo_write_do_hibern8_flush_store(struct device *dev,
++				   struct device_attribute *attr,
++				   const char *buf, size_t count)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++	unsigned int enable;
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	if (kstrtouint(buf, 0, &enable))
++		return -EINVAL;
++
++	if (enable)
++		ufshcd_turbo_write_enable_flush_on_hibern8(hba);
++	else
++		ufshcd_turbo_write_disable_flush_on_hibern8(hba);
++
++	return count;
++}
++
+ static DEVICE_ATTR_RW(rpm_lvl);
+ static DEVICE_ATTR_RO(rpm_target_dev_state);
+ static DEVICE_ATTR_RO(rpm_target_link_state);
+@@ -193,6 +227,7 @@ static DEVICE_ATTR_RO(spm_target_dev_state);
+ static DEVICE_ATTR_RO(spm_target_link_state);
+ static DEVICE_ATTR_RW(turbo_write_do_enable);
+ static DEVICE_ATTR_RW(turbo_write_do_flush);
++static DEVICE_ATTR_RW(turbo_write_do_hibern8_flush);
+ 
+ static struct attribute *ufs_sysfs_ufshcd_attrs[] = {
+ 	&dev_attr_rpm_lvl.attr,
+@@ -203,6 +238,7 @@ static struct attribute *ufs_sysfs_ufshcd_attrs[] = {
+ 	&dev_attr_spm_target_link_state.attr,
+ 	&dev_attr_turbo_write_do_enable.attr,
+ 	&dev_attr_turbo_write_do_flush.attr,
++	&dev_attr_turbo_write_do_hibern8_flush.attr,
+ 	NULL
+ };
+ 
+-- 
+2.7.4
+

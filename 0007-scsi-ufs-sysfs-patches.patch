@@ -1,0 +1,1925 @@
+From bd2f40b92826daec41cb181e581b9d23dc1a9a86 Mon Sep 17 00:00:00 2001
+From: Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Date: Thu, 15 Feb 2018 14:14:01 +0200
+Subject: [PATCH 07/25] scsi: ufs: sysfs patches
+
+The sysfs entries in oneplus7 are located in
+/sys/devices/platform/soc/1d84000.ufshc
+
+==============================================================
+scsi: ufs: sysfs: attribute group for existing sysfs entries.
+scsi: ufs: sysfs: device descriptor
+scsi: ufs: sysfs: interconnect descriptor
+scsi: ufs: sysfs: geometry descriptor
+scsi: ufs: sysfs: health descriptor
+scsi: ufs: sysfs: power descriptor
+scsi: ufs: sysfs: string descriptors
+scsi: core: host template attribute groups
+scsi: ufs: sysfs: unit descriptor
+scsi: ufs: sysfs: flags
+scsi: ufs: sysfs: attributes
+scsi: ufs: sysfs: reworking of the rpm_lvl and spm_lvl entries
+
+Change-Id: Iffbdef1d450a2bef6064f6d4f9a4c4a20e7966a7
+Signed-off-by: Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Acked-by: Adrian Hunter <adrian.hunter@intel.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+---
+ Documentation/ABI/testing/sysfs-driver-ufs | 871 +++++++++++++++++++++++++++++
+ drivers/scsi/scsi_sysfs.c                  |  11 +
+ drivers/scsi/ufs/Makefile                  |   2 +-
+ drivers/scsi/ufs/ufs-sysfs.c               | 741 ++++++++++++++++++++++++
+ drivers/scsi/ufs/ufs-sysfs.h               |  17 +
+ drivers/scsi/ufs/ufshcd.c                  |  50 +-
+ drivers/scsi/ufs/ufshcd.h                  |  29 +
+ include/scsi/scsi_host.h                   |   6 +
+ 8 files changed, 1696 insertions(+), 31 deletions(-)
+ create mode 100644 Documentation/ABI/testing/sysfs-driver-ufs
+ create mode 100644 drivers/scsi/ufs/ufs-sysfs.c
+ create mode 100644 drivers/scsi/ufs/ufs-sysfs.h
+
+diff --git a/Documentation/ABI/testing/sysfs-driver-ufs b/Documentation/ABI/testing/sysfs-driver-ufs
+new file mode 100644
+index 0000000..83735f7
+--- /dev/null
++++ b/Documentation/ABI/testing/sysfs-driver-ufs
+@@ -0,0 +1,871 @@
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/device_type
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the device type. This is one of the UFS
++		device descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/device_class
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the device class. This is one of the UFS
++		device descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/device_sub_class
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the UFS storage subclass. This is one of
++		the UFS device descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/protocol
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the protocol supported by an UFS device.
++		This is one of the UFS device descriptor parameters.
++		The full information about the descriptor could be found
++		at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/number_of_luns
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows number of logical units. This is one of
++		the UFS device descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/number_of_wluns
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows number of well known logical units.
++		This is one of the UFS device descriptor parameters.
++		The full information about the descriptor could be found
++		at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/boot_enable
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows value that indicates whether the device is
++		enabled for boot. This is one of the UFS device descriptor
++		parameters. The full information about the descriptor could
++		be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/descriptor_access_enable
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows value that indicates whether the device
++		descriptor could be read after partial initialization phase
++		of the boot sequence. This is one of the UFS device descriptor
++		parameters. The full information about the descriptor could
++		be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/initial_power_mode
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows value that defines the power mode after
++		device initialization or hardware reset. This is one of
++		the UFS device descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/high_priority_lun
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the high priority lun. This is one of
++		the UFS device descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/secure_removal_type
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the secure removal type. This is one of
++		the UFS device descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/support_security_lun
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows whether the security lun is supported.
++		This is one of the UFS device descriptor parameters.
++		The full information about the descriptor could be found
++		at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/bkops_termination_latency
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the background operations termination
++		latency. This is one of the UFS device descriptor parameters.
++		The full information about the descriptor could be found
++		at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/initial_active_icc_level
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the initial active ICC level. This is one
++		of the UFS device descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/specification_version
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the specification version. This is one
++		of the UFS device descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/manufacturing_date
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the manufacturing date in BCD format.
++		This is one of the UFS device descriptor parameters.
++		The full information about the descriptor could be found
++		at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/manufacturer_id
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the manufacturee ID. This is one of the
++		UFS device descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/rtt_capability
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the maximum number of outstanding RTTs
++		supported by the device. This is one of the UFS device
++		descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/rtc_update
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the frequency and method of the realtime
++		clock update. This is one of the UFS device descriptor
++		parameters. The full information about the descriptor
++		could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/ufs_features
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows which features are supported by the device.
++		This is one of the UFS device descriptor parameters.
++		The full information about the descriptor could be
++		found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/ffu_timeout
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the FFU timeout. This is one of the
++		UFS device descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/queue_depth
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the device queue depth. This is one of the
++		UFS device descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/device_version
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the device version. This is one of the
++		UFS device descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/number_of_secure_wpa
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows number of secure write protect areas
++		supported by the device. This is one of the UFS device
++		descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/psa_max_data_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the maximum amount of data that may be
++		written during the pre-soldering phase of the PSA flow.
++		This is one of the UFS device descriptor parameters.
++		The full information about the descriptor could be found
++		at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/psa_state_timeout
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the command maximum timeout for a change
++		in PSA state. This is one of the UFS device descriptor
++		parameters. The full information about the descriptor could
++		be found at UFS specifications 2.1.
++		The file is read only.
++
++
++What:		/sys/bus/platform/drivers/ufshcd/*/interconnect_descriptor/unipro_version
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the MIPI UniPro version number in BCD format.
++		This is one of the UFS interconnect descriptor parameters.
++		The full information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/interconnect_descriptor/mphy_version
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the MIPI M-PHY version number in BCD format.
++		This is one of the UFS interconnect descriptor parameters.
++		The full information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/raw_device_capacity
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the total memory quantity available to
++		the user to configure the device logical units. This is one
++		of the UFS geometry descriptor parameters. The full
++		information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/max_number_of_luns
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the maximum number of logical units
++		supported by the UFS device. This is one of the UFS
++		geometry descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/segment_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the segment size. This is one of the UFS
++		geometry descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/allocation_unit_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the allocation unit size. This is one of
++		the UFS geometry descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/min_addressable_block_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the minimum addressable block size. This
++		is one of the UFS geometry descriptor parameters. The full
++		information about the descriptor could be found at UFS
++		specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/optimal_read_block_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the optimal read block size. This is one
++		of the UFS geometry descriptor parameters. The full
++		information about the descriptor could be found at UFS
++		specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/optimal_write_block_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the optimal write block size. This is one
++		of the UFS geometry descriptor parameters. The full
++		information about the descriptor could be found at UFS
++		specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/max_in_buffer_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the maximum data-in buffer size. This
++		is one of the UFS geometry descriptor parameters. The full
++		information about the descriptor could be found at UFS
++		specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/max_out_buffer_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the maximum data-out buffer size. This
++		is one of the UFS geometry descriptor parameters. The full
++		information about the descriptor could be found at UFS
++		specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/rpmb_rw_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the maximum number of RPMB frames allowed
++		in Security Protocol In/Out. This is one of the UFS geometry
++		descriptor parameters. The full information about the
++		descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/dyn_capacity_resource_policy
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the dynamic capacity resource policy. This
++		is one of the UFS geometry descriptor parameters. The full
++		information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/data_ordering
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows support for out-of-order data transfer.
++		This is one of the UFS geometry descriptor parameters.
++		The full information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/max_number_of_contexts
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows maximum available number of contexts which
++		are supported by the device. This is one of the UFS geometry
++		descriptor parameters. The full information about the
++		descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/sys_data_tag_unit_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows system data tag unit size. This is one of
++		the UFS geometry descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/sys_data_tag_resource_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows maximum storage area size allocated by
++		the device to handle system data by the tagging mechanism.
++		This is one of the UFS geometry descriptor parameters.
++		The full information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/secure_removal_types
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows supported secure removal types. This is
++		one of the UFS geometry descriptor parameters. The full
++		information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/memory_types
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows supported memory types. This is one of
++		the UFS geometry descriptor parameters. The full
++		information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/*_memory_max_alloc_units
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the maximum number of allocation units for
++		different memory types (system code, non persistent,
++		enhanced type 1-4). This is one of the UFS geometry
++		descriptor parameters. The full information about the
++		descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/*_memory_capacity_adjustment_factor
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the memory capacity adjustment factor for
++		different memory types (system code, non persistent,
++		enhanced type 1-4). This is one of the UFS geometry
++		descriptor parameters. The full information about the
++		descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++
++What:		/sys/bus/platform/drivers/ufshcd/*/health_descriptor/eol_info
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows preend of life information. This is one
++		of the UFS health descriptor parameters. The full
++		information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/health_descriptor/life_time_estimation_a
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows indication of the device life time
++		(method a). This is one of the UFS health descriptor
++		parameters. The full information about the descriptor
++		could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/health_descriptor/life_time_estimation_b
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows indication of the device life time
++		(method b). This is one of the UFS health descriptor
++		parameters. The full information about the descriptor
++		could be found at UFS specifications 2.1.
++		The file is read only.
++
++
++What:		/sys/bus/platform/drivers/ufshcd/*/power_descriptor/active_icc_levels_vcc*
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows maximum VCC, VCCQ and VCCQ2 value for
++		active ICC levels from 0 to 15. This is one of the UFS
++		power descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++
++What:		/sys/bus/platform/drivers/ufshcd/*/string_descriptors/manufacturer_name
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file contains a device manufactureer name string.
++		The full information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/string_descriptors/product_name
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file contains a product name string. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/string_descriptors/oem_id
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file contains a OEM ID string. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/string_descriptors/serial_number
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file contains a device serial number string. The full
++		information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/string_descriptors/product_revision
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file contains a product revision string. The full
++		information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/boot_lun_id
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows boot LUN information. This is one of
++		the UFS unit descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/lun_write_protect
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows LUN write protection status. This is one of
++		the UFS unit descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/lun_queue_depth
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows LUN queue depth. This is one of the UFS
++		unit descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/psa_sensitive
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows PSA sensitivity. This is one of the UFS
++		unit descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/lun_memory_type
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows LUN memory type. This is one of the UFS
++		unit descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/data_reliability
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file defines the device behavior when a power failure
++		occurs during a write operation. This is one of the UFS
++		unit descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/logical_block_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the size of addressable logical blocks
++		(calculated as an exponent with base 2). This is one of
++		the UFS unit descriptor parameters. The full information about
++		the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/logical_block_count
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows total number of addressable logical blocks.
++		This is one of the UFS unit descriptor parameters. The full
++		information about the descriptor could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/erase_block_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the erase block size. This is one of
++		the UFS unit descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/provisioning_type
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the thin provisioning type. This is one of
++		the UFS unit descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/physical_memory_resourse_count
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the total physical memory resources. This is
++		one of the UFS unit descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/context_capabilities
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the context capabilities. This is one of
++		the UFS unit descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/class/scsi_device/*/device/unit_descriptor/large_unit_granularity
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the granularity of the LUN. This is one of
++		the UFS unit descriptor parameters. The full information
++		about the descriptor could be found at UFS specifications 2.1.
++		The file is read only.
++
++
++What:		/sys/bus/platform/drivers/ufshcd/*/flags/device_init
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the device init status. The full information
++		about the flag could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/flags/permanent_wpe
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows whether permanent write protection is enabled.
++		The full information about the flag could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/flags/power_on_wpe
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows whether write protection is enabled on all
++		logical units configured as power on write protected. The
++		full information about the flag could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/flags/bkops_enable
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows whether the device background operations are
++		enabled. The full information about the flag could be
++		found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/flags/life_span_mode_enable
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows whether the device life span mode is enabled.
++		The full information about the flag could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/flags/phy_resource_removal
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows whether physical resource removal is enable.
++		The full information about the flag could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/flags/busy_rtc
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows whether the device is executing internal
++		operation related to real time clock. The full information
++		about the flag could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/flags/disable_fw_update
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows whether the device FW update is permanently
++		disabled. The full information about the flag could be found
++		at UFS specifications 2.1.
++		The file is read only.
++
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/boot_lun_enabled
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file provides the boot lun enabled UFS device attribute.
++		The full information about the attribute could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/current_power_mode
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file provides the current power mode UFS device attribute.
++		The full information about the attribute could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/active_icc_level
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file provides the active icc level UFS device attribute.
++		The full information about the attribute could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/ooo_data_enabled
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file provides the out of order data transfer enabled UFS
++		device attribute. The full information about the attribute
++		could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/bkops_status
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file provides the background operations status UFS device
++		attribute. The full information about the attribute could
++		be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/purge_status
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file provides the purge operation status UFS device
++		attribute. The full information about the attribute could
++		be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/max_data_in_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the maximum data size in a DATA IN
++		UPIU. The full information about the attribute could
++		be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/max_data_out_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the maximum number of bytes that can be
++		requested with a READY TO TRANSFER UPIU. The full information
++		about the attribute could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/reference_clock_frequency
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file provides the reference clock frequency UFS device
++		attribute. The full information about the attribute could
++		be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/configuration_descriptor_lock
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows whether the configuration descriptor is locked.
++		The full information about the attribute could be found at
++		UFS specifications 2.1. The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/max_number_of_rtt
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file provides the maximum current number of
++		outstanding RTTs in device that is allowed. The full
++		information about the attribute could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/exception_event_control
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file provides the exception event control UFS device
++		attribute. The full information about the attribute could
++		be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/exception_event_status
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file provides the exception event status UFS device
++		attribute. The full information about the attribute could
++		be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/ffu_status
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file provides the ffu status UFS device attribute.
++		The full information about the attribute could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/psa_state
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file show the PSA feature status. The full information
++		about the attribute could be found at UFS specifications 2.1.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/attributes/psa_data_size
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the amount of data that the host plans to
++		load to all logical units in pre-soldering state.
++		The full information about the attribute could be found at
++		UFS specifications 2.1.
++		The file is read only.
++
++
++What:		/sys/class/scsi_device/*/device/dyn_cap_needed
++Date:		February 2018
++Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
++Description:	This file shows the The amount of physical memory needed
++		to be removed from the physical memory resources pool of
++		the particular logical unit. The full information about
++		the attribute could be found at UFS specifications 2.1.
++		The file is read only.
++
++
++What:		/sys/bus/platform/drivers/ufshcd/*/rpm_lvl
++Date:		September 2014
++Contact:	Subhash Jadavani <subhashj@codeaurora.org>
++Description:	This entry could be used to set or show the UFS device
++		runtime power management level. The current driver
++		implementation supports 6 levels with next target states:
++		0 - an UFS device will stay active, an UIC link will
++		stay active
++		1 - an UFS device will stay active, an UIC link will
++		hibernate
++		2 - an UFS device will moved to sleep, an UIC link will
++		stay active
++		3 - an UFS device will moved to sleep, an UIC link will
++		hibernate
++		4 - an UFS device will be powered off, an UIC link will
++		hibernate
++		5 - an UFS device will be powered off, an UIC link will
++		be powered off
++
++What:		/sys/bus/platform/drivers/ufshcd/*/rpm_target_dev_state
++Date:		February 2018
++Contact:	Subhash Jadavani <subhashj@codeaurora.org>
++Description:	This entry shows the target power mode of an UFS device
++		for the chosen runtime power management level.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/rpm_target_link_state
++Date:		February 2018
++Contact:	Subhash Jadavani <subhashj@codeaurora.org>
++Description:	This entry shows the target state of an UFS UIC link
++		for the chosen runtime power management level.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/spm_lvl
++Date:		September 2014
++Contact:	Subhash Jadavani <subhashj@codeaurora.org>
++Description:	This entry could be used to set or show the UFS device
++		system power management level. The current driver
++		implementation supports 6 levels with next target states:
++		0 - an UFS device will stay active, an UIC link will
++		stay active
++		1 - an UFS device will stay active, an UIC link will
++		hibernate
++		2 - an UFS device will moved to sleep, an UIC link will
++		stay active
++		3 - an UFS device will moved to sleep, an UIC link will
++		hibernate
++		4 - an UFS device will be powered off, an UIC link will
++		hibernate
++		5 - an UFS device will be powered off, an UIC link will
++		be powered off
++
++What:		/sys/bus/platform/drivers/ufshcd/*/spm_target_dev_state
++Date:		February 2018
++Contact:	Subhash Jadavani <subhashj@codeaurora.org>
++Description:	This entry shows the target power mode of an UFS device
++		for the chosen system power management level.
++		The file is read only.
++
++What:		/sys/bus/platform/drivers/ufshcd/*/spm_target_link_state
++Date:		February 2018
++Contact:	Subhash Jadavani <subhashj@codeaurora.org>
++Description:	This entry shows the target state of an UFS UIC link
++		for the chosen system power management level.
++		The file is read only.
+diff --git a/drivers/scsi/scsi_sysfs.c b/drivers/scsi/scsi_sysfs.c
+index 761e8b5..14fac14 100644
+--- a/drivers/scsi/scsi_sysfs.c
++++ b/drivers/scsi/scsi_sysfs.c
+@@ -1297,6 +1297,13 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
+ 		}
+ 	}
+ 
++	if (sdev->host->hostt->sdev_groups) {
++		error = sysfs_create_groups(&sdev->sdev_gendev.kobj,
++				sdev->host->hostt->sdev_groups);
++		if (error)
++			return error;
++	}
++
+ 	scsi_autopm_put_device(sdev);
+ 	return error;
+ }
+@@ -1336,6 +1343,10 @@ void __scsi_remove_device(struct scsi_device *sdev)
+ 		if (res != 0)
+ 			return;
+ 
++		if (sdev->host->hostt->sdev_groups)
++			sysfs_remove_groups(&sdev->sdev_gendev.kobj,
++					sdev->host->hostt->sdev_groups);
++
+ 		bsg_unregister_queue(sdev->request_queue);
+ 		device_unregister(&sdev->sdev_dev);
+ 		transport_remove_device(dev);
+diff --git a/drivers/scsi/ufs/Makefile b/drivers/scsi/ufs/Makefile
+index 935b34a..ec2445d 100644
+--- a/drivers/scsi/ufs/Makefile
++++ b/drivers/scsi/ufs/Makefile
+@@ -4,7 +4,7 @@ obj-$(CONFIG_SCSI_UFS_DWC_TC_PCI) += tc-dwc-g210-pci.o ufshcd-dwc.o tc-dwc-g210.
+ obj-$(CONFIG_SCSI_UFS_DWC_TC_PLATFORM) += tc-dwc-g210-pltfrm.o ufshcd-dwc.o tc-dwc-g210.o
+ obj-$(CONFIG_SCSI_UFS_QCOM) += ufs-qcom.o
+ obj-$(CONFIG_SCSI_UFS_QCOM_ICE) += ufs-qcom-ice.o
+-obj-$(CONFIG_SCSI_UFSHCD) += ufshcd.o
++obj-$(CONFIG_SCSI_UFSHCD) += ufshcd.o ufs-sysfs.o
+ obj-$(CONFIG_SCSI_UFSHCD_PCI) += ufshcd-pci.o
+ obj-$(CONFIG_SCSI_UFSHCD_PLATFORM) += ufshcd-pltfrm.o
+ obj-$(CONFIG_SCSI_UFS_TEST) += ufs_test.o
+diff --git a/drivers/scsi/ufs/ufs-sysfs.c b/drivers/scsi/ufs/ufs-sysfs.c
+new file mode 100644
+index 0000000..b030db5
+--- /dev/null
++++ b/drivers/scsi/ufs/ufs-sysfs.c
+@@ -0,0 +1,741 @@
++// SPDX-License-Identifier: GPL-2.0
++// Copyright (C) 2018 Western Digital Corporation
++
++#include <linux/err.h>
++#include <linux/string.h>
++#include <asm/unaligned.h>
++
++#include "ufs.h"
++#include "ufs-sysfs.h"
++
++static const char *ufschd_uic_link_state_to_string(
++			enum uic_link_state state)
++{
++	switch (state) {
++	case UIC_LINK_OFF_STATE:	return "OFF";
++	case UIC_LINK_ACTIVE_STATE:	return "ACTIVE";
++	case UIC_LINK_HIBERN8_STATE:	return "HIBERN8";
++	default:			return "UNKNOWN";
++	}
++}
++
++static const char *ufschd_ufs_dev_pwr_mode_to_string(
++			enum ufs_dev_pwr_mode state)
++{
++	switch (state) {
++	case UFS_ACTIVE_PWR_MODE:	return "ACTIVE";
++	case UFS_SLEEP_PWR_MODE:	return "SLEEP";
++	case UFS_POWERDOWN_PWR_MODE:	return "POWERDOWN";
++	default:			return "UNKNOWN";
++	}
++}
++
++static inline ssize_t ufs_sysfs_pm_lvl_store(struct device *dev,
++					     struct device_attribute *attr,
++					     const char *buf, size_t count,
++					     bool rpm)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++	unsigned long flags, value;
++
++	if (kstrtoul(buf, 0, &value))
++		return -EINVAL;
++
++	if (value >= UFS_PM_LVL_MAX)
++		return -EINVAL;
++
++	spin_lock_irqsave(hba->host->host_lock, flags);
++	if (rpm)
++		hba->rpm_lvl = value;
++	else
++		hba->spm_lvl = value;
++	spin_unlock_irqrestore(hba->host->host_lock, flags);
++	return count;
++}
++
++static ssize_t rpm_lvl_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++
++	return sprintf(buf, "%d\n", hba->rpm_lvl);
++}
++
++static ssize_t rpm_lvl_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t count)
++{
++	return ufs_sysfs_pm_lvl_store(dev, attr, buf, count, true);
++}
++
++static ssize_t rpm_target_dev_state_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++
++	return sprintf(buf, "%s\n", ufschd_ufs_dev_pwr_mode_to_string(
++			ufs_pm_lvl_states[hba->rpm_lvl].dev_state));
++}
++
++static ssize_t rpm_target_link_state_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++
++	return sprintf(buf, "%s\n", ufschd_uic_link_state_to_string(
++			ufs_pm_lvl_states[hba->rpm_lvl].link_state));
++}
++
++static ssize_t spm_lvl_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++
++	return sprintf(buf, "%d\n", hba->spm_lvl);
++}
++
++static ssize_t spm_lvl_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t count)
++{
++	return ufs_sysfs_pm_lvl_store(dev, attr, buf, count, false);
++}
++
++static ssize_t spm_target_dev_state_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++
++	return sprintf(buf, "%s\n", ufschd_ufs_dev_pwr_mode_to_string(
++				ufs_pm_lvl_states[hba->spm_lvl].dev_state));
++}
++
++static ssize_t spm_target_link_state_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++
++	return sprintf(buf, "%s\n", ufschd_uic_link_state_to_string(
++				ufs_pm_lvl_states[hba->spm_lvl].link_state));
++}
++
++static DEVICE_ATTR_RW(rpm_lvl);
++static DEVICE_ATTR_RO(rpm_target_dev_state);
++static DEVICE_ATTR_RO(rpm_target_link_state);
++static DEVICE_ATTR_RW(spm_lvl);
++static DEVICE_ATTR_RO(spm_target_dev_state);
++static DEVICE_ATTR_RO(spm_target_link_state);
++
++static struct attribute *ufs_sysfs_ufshcd_attrs[] = {
++	&dev_attr_rpm_lvl.attr,
++	&dev_attr_rpm_target_dev_state.attr,
++	&dev_attr_rpm_target_link_state.attr,
++	&dev_attr_spm_lvl.attr,
++	&dev_attr_spm_target_dev_state.attr,
++	&dev_attr_spm_target_link_state.attr,
++	NULL
++};
++
++static const struct attribute_group ufs_sysfs_default_group = {
++	.attrs = ufs_sysfs_ufshcd_attrs,
++};
++
++static ssize_t ufs_sysfs_read_desc_param(struct ufs_hba *hba,
++				  enum desc_idn desc_id,
++				  u8 desc_index,
++				  u8 param_offset,
++				  u8 *sysfs_buf,
++				  u8 param_size)
++{
++	u8 desc_buf[8] = {0};
++	int ret;
++
++	if (param_size > 8)
++		return -EINVAL;
++
++	ret = ufshcd_read_desc_param(hba, desc_id, desc_index,
++				param_offset, desc_buf, param_size);
++	if (ret)
++		return -EINVAL;
++	switch (param_size) {
++	case 1:
++		ret = sprintf(sysfs_buf, "0x%02X\n", *desc_buf);
++		break;
++	case 2:
++		ret = sprintf(sysfs_buf, "0x%04X\n",
++			get_unaligned_be16(desc_buf));
++		break;
++	case 4:
++		ret = sprintf(sysfs_buf, "0x%08X\n",
++			get_unaligned_be32(desc_buf));
++		break;
++	case 8:
++		ret = sprintf(sysfs_buf, "0x%016llX\n",
++			get_unaligned_be64(desc_buf));
++		break;
++	}
++
++	return ret;
++}
++
++#define UFS_DESC_PARAM(_name, _puname, _duname, _size)			\
++static ssize_t _name##_show(struct device *dev,				\
++	struct device_attribute *attr, char *buf)			\
++{									\
++	struct ufs_hba *hba = dev_get_drvdata(dev);			\
++	return ufs_sysfs_read_desc_param(hba, QUERY_DESC_IDN_##_duname,	\
++		0, _duname##_DESC_PARAM##_puname, buf, _size);		\
++}									\
++static DEVICE_ATTR_RO(_name)
++
++#define UFS_DEVICE_DESC_PARAM(_name, _uname, _size)			\
++	UFS_DESC_PARAM(_name, _uname, DEVICE, _size)
++
++UFS_DEVICE_DESC_PARAM(device_type, _DEVICE_TYPE, 1);
++UFS_DEVICE_DESC_PARAM(device_class, _DEVICE_CLASS, 1);
++UFS_DEVICE_DESC_PARAM(device_sub_class, _DEVICE_SUB_CLASS, 1);
++UFS_DEVICE_DESC_PARAM(protocol, _PRTCL, 1);
++UFS_DEVICE_DESC_PARAM(number_of_luns, _NUM_LU, 1);
++UFS_DEVICE_DESC_PARAM(number_of_wluns, _NUM_WLU, 1);
++UFS_DEVICE_DESC_PARAM(boot_enable, _BOOT_ENBL, 1);
++UFS_DEVICE_DESC_PARAM(descriptor_access_enable, _DESC_ACCSS_ENBL, 1);
++UFS_DEVICE_DESC_PARAM(initial_power_mode, _INIT_PWR_MODE, 1);
++UFS_DEVICE_DESC_PARAM(high_priority_lun, _HIGH_PR_LUN, 1);
++UFS_DEVICE_DESC_PARAM(secure_removal_type, _SEC_RMV_TYPE, 1);
++UFS_DEVICE_DESC_PARAM(support_security_lun, _SEC_LU, 1);
++UFS_DEVICE_DESC_PARAM(bkops_termination_latency, _BKOP_TERM_LT, 1);
++UFS_DEVICE_DESC_PARAM(initial_active_icc_level, _ACTVE_ICC_LVL, 1);
++UFS_DEVICE_DESC_PARAM(specification_version, _SPEC_VER, 2);
++UFS_DEVICE_DESC_PARAM(manufacturing_date, _MANF_DATE, 2);
++UFS_DEVICE_DESC_PARAM(manufacturer_id, _MANF_ID, 2);
++UFS_DEVICE_DESC_PARAM(rtt_capability, _RTT_CAP, 1);
++UFS_DEVICE_DESC_PARAM(rtc_update, _FRQ_RTC, 2);
++UFS_DEVICE_DESC_PARAM(ufs_features, _UFS_FEAT, 1);
++UFS_DEVICE_DESC_PARAM(ffu_timeout, _FFU_TMT, 1);
++UFS_DEVICE_DESC_PARAM(queue_depth, _Q_DPTH, 1);
++UFS_DEVICE_DESC_PARAM(device_version, _DEV_VER, 2);
++UFS_DEVICE_DESC_PARAM(number_of_secure_wpa, _NUM_SEC_WPA, 1);
++UFS_DEVICE_DESC_PARAM(psa_max_data_size, _PSA_MAX_DATA, 4);
++UFS_DEVICE_DESC_PARAM(psa_state_timeout, _PSA_TMT, 1);
++
++static struct attribute *ufs_sysfs_device_descriptor[] = {
++	&dev_attr_device_type.attr,
++	&dev_attr_device_class.attr,
++	&dev_attr_device_sub_class.attr,
++	&dev_attr_protocol.attr,
++	&dev_attr_number_of_luns.attr,
++	&dev_attr_number_of_wluns.attr,
++	&dev_attr_boot_enable.attr,
++	&dev_attr_descriptor_access_enable.attr,
++	&dev_attr_initial_power_mode.attr,
++	&dev_attr_high_priority_lun.attr,
++	&dev_attr_secure_removal_type.attr,
++	&dev_attr_support_security_lun.attr,
++	&dev_attr_bkops_termination_latency.attr,
++	&dev_attr_initial_active_icc_level.attr,
++	&dev_attr_specification_version.attr,
++	&dev_attr_manufacturing_date.attr,
++	&dev_attr_manufacturer_id.attr,
++	&dev_attr_rtt_capability.attr,
++	&dev_attr_rtc_update.attr,
++	&dev_attr_ufs_features.attr,
++	&dev_attr_ffu_timeout.attr,
++	&dev_attr_queue_depth.attr,
++	&dev_attr_device_version.attr,
++	&dev_attr_number_of_secure_wpa.attr,
++	&dev_attr_psa_max_data_size.attr,
++	&dev_attr_psa_state_timeout.attr,
++	NULL,
++};
++
++static const struct attribute_group ufs_sysfs_device_descriptor_group = {
++	.name = "device_descriptor",
++	.attrs = ufs_sysfs_device_descriptor,
++};
++
++#define UFS_INTERCONNECT_DESC_PARAM(_name, _uname, _size)		\
++	UFS_DESC_PARAM(_name, _uname, INTERCONNECT, _size)
++
++UFS_INTERCONNECT_DESC_PARAM(unipro_version, _UNIPRO_VER, 2);
++UFS_INTERCONNECT_DESC_PARAM(mphy_version, _MPHY_VER, 2);
++
++static struct attribute *ufs_sysfs_interconnect_descriptor[] = {
++	&dev_attr_unipro_version.attr,
++	&dev_attr_mphy_version.attr,
++	NULL,
++};
++
++static const struct attribute_group ufs_sysfs_interconnect_descriptor_group = {
++	.name = "interconnect_descriptor",
++	.attrs = ufs_sysfs_interconnect_descriptor,
++};
++
++#define UFS_GEOMETRY_DESC_PARAM(_name, _uname, _size)			\
++	UFS_DESC_PARAM(_name, _uname, GEOMETRY, _size)
++
++UFS_GEOMETRY_DESC_PARAM(raw_device_capacity, _DEV_CAP, 8);
++UFS_GEOMETRY_DESC_PARAM(max_number_of_luns, _MAX_NUM_LUN, 1);
++UFS_GEOMETRY_DESC_PARAM(segment_size, _SEG_SIZE, 4);
++UFS_GEOMETRY_DESC_PARAM(allocation_unit_size, _ALLOC_UNIT_SIZE, 1);
++UFS_GEOMETRY_DESC_PARAM(min_addressable_block_size, _MIN_BLK_SIZE, 1);
++UFS_GEOMETRY_DESC_PARAM(optimal_read_block_size, _OPT_RD_BLK_SIZE, 1);
++UFS_GEOMETRY_DESC_PARAM(optimal_write_block_size, _OPT_WR_BLK_SIZE, 1);
++UFS_GEOMETRY_DESC_PARAM(max_in_buffer_size, _MAX_IN_BUF_SIZE, 1);
++UFS_GEOMETRY_DESC_PARAM(max_out_buffer_size, _MAX_OUT_BUF_SIZE, 1);
++UFS_GEOMETRY_DESC_PARAM(rpmb_rw_size, _RPMB_RW_SIZE, 1);
++UFS_GEOMETRY_DESC_PARAM(dyn_capacity_resource_policy, _DYN_CAP_RSRC_PLC, 1);
++UFS_GEOMETRY_DESC_PARAM(data_ordering, _DATA_ORDER, 1);
++UFS_GEOMETRY_DESC_PARAM(max_number_of_contexts, _MAX_NUM_CTX, 1);
++UFS_GEOMETRY_DESC_PARAM(sys_data_tag_unit_size, _TAG_UNIT_SIZE, 1);
++UFS_GEOMETRY_DESC_PARAM(sys_data_tag_resource_size, _TAG_RSRC_SIZE, 1);
++UFS_GEOMETRY_DESC_PARAM(secure_removal_types, _SEC_RM_TYPES, 1);
++UFS_GEOMETRY_DESC_PARAM(memory_types, _MEM_TYPES, 2);
++UFS_GEOMETRY_DESC_PARAM(sys_code_memory_max_alloc_units,
++	_SCM_MAX_NUM_UNITS, 4);
++UFS_GEOMETRY_DESC_PARAM(sys_code_memory_capacity_adjustment_factor,
++	_SCM_CAP_ADJ_FCTR, 2);
++UFS_GEOMETRY_DESC_PARAM(non_persist_memory_max_alloc_units,
++	_NPM_MAX_NUM_UNITS, 4);
++UFS_GEOMETRY_DESC_PARAM(non_persist_memory_capacity_adjustment_factor,
++	_NPM_CAP_ADJ_FCTR, 2);
++UFS_GEOMETRY_DESC_PARAM(enh1_memory_max_alloc_units,
++	_ENM1_MAX_NUM_UNITS, 4);
++UFS_GEOMETRY_DESC_PARAM(enh1_memory_capacity_adjustment_factor,
++	_ENM1_CAP_ADJ_FCTR, 2);
++UFS_GEOMETRY_DESC_PARAM(enh2_memory_max_alloc_units,
++	_ENM2_MAX_NUM_UNITS, 4);
++UFS_GEOMETRY_DESC_PARAM(enh2_memory_capacity_adjustment_factor,
++	_ENM2_CAP_ADJ_FCTR, 2);
++UFS_GEOMETRY_DESC_PARAM(enh3_memory_max_alloc_units,
++	_ENM3_MAX_NUM_UNITS, 4);
++UFS_GEOMETRY_DESC_PARAM(enh3_memory_capacity_adjustment_factor,
++	_ENM3_CAP_ADJ_FCTR, 2);
++UFS_GEOMETRY_DESC_PARAM(enh4_memory_max_alloc_units,
++	_ENM4_MAX_NUM_UNITS, 4);
++UFS_GEOMETRY_DESC_PARAM(enh4_memory_capacity_adjustment_factor,
++	_ENM4_CAP_ADJ_FCTR, 2);
++
++static struct attribute *ufs_sysfs_geometry_descriptor[] = {
++	&dev_attr_raw_device_capacity.attr,
++	&dev_attr_max_number_of_luns.attr,
++	&dev_attr_segment_size.attr,
++	&dev_attr_allocation_unit_size.attr,
++	&dev_attr_min_addressable_block_size.attr,
++	&dev_attr_optimal_read_block_size.attr,
++	&dev_attr_optimal_write_block_size.attr,
++	&dev_attr_max_in_buffer_size.attr,
++	&dev_attr_max_out_buffer_size.attr,
++	&dev_attr_rpmb_rw_size.attr,
++	&dev_attr_dyn_capacity_resource_policy.attr,
++	&dev_attr_data_ordering.attr,
++	&dev_attr_max_number_of_contexts.attr,
++	&dev_attr_sys_data_tag_unit_size.attr,
++	&dev_attr_sys_data_tag_resource_size.attr,
++	&dev_attr_secure_removal_types.attr,
++	&dev_attr_memory_types.attr,
++	&dev_attr_sys_code_memory_max_alloc_units.attr,
++	&dev_attr_sys_code_memory_capacity_adjustment_factor.attr,
++	&dev_attr_non_persist_memory_max_alloc_units.attr,
++	&dev_attr_non_persist_memory_capacity_adjustment_factor.attr,
++	&dev_attr_enh1_memory_max_alloc_units.attr,
++	&dev_attr_enh1_memory_capacity_adjustment_factor.attr,
++	&dev_attr_enh2_memory_max_alloc_units.attr,
++	&dev_attr_enh2_memory_capacity_adjustment_factor.attr,
++	&dev_attr_enh3_memory_max_alloc_units.attr,
++	&dev_attr_enh3_memory_capacity_adjustment_factor.attr,
++	&dev_attr_enh4_memory_max_alloc_units.attr,
++	&dev_attr_enh4_memory_capacity_adjustment_factor.attr,
++	NULL,
++};
++
++static const struct attribute_group ufs_sysfs_geometry_descriptor_group = {
++	.name = "geometry_descriptor",
++	.attrs = ufs_sysfs_geometry_descriptor,
++};
++
++#define UFS_HEALTH_DESC_PARAM(_name, _uname, _size)			\
++	UFS_DESC_PARAM(_name, _uname, HEALTH, _size)
++
++UFS_HEALTH_DESC_PARAM(eol_info, _EOL_INFO, 1);
++UFS_HEALTH_DESC_PARAM(life_time_estimation_a, _LIFE_TIME_EST_A, 1);
++UFS_HEALTH_DESC_PARAM(life_time_estimation_b, _LIFE_TIME_EST_B, 1);
++
++static struct attribute *ufs_sysfs_health_descriptor[] = {
++	&dev_attr_eol_info.attr,
++	&dev_attr_life_time_estimation_a.attr,
++	&dev_attr_life_time_estimation_b.attr,
++	NULL,
++};
++
++static const struct attribute_group ufs_sysfs_health_descriptor_group = {
++	.name = "health_descriptor",
++	.attrs = ufs_sysfs_health_descriptor,
++};
++
++#define UFS_POWER_DESC_PARAM(_name, _uname, _index)			\
++static ssize_t _name##_index##_show(struct device *dev,			\
++	struct device_attribute *attr, char *buf)			\
++{									\
++	struct ufs_hba *hba = dev_get_drvdata(dev);			\
++	return ufs_sysfs_read_desc_param(hba, QUERY_DESC_IDN_POWER, 0,	\
++		PWR_DESC##_uname##_0 + _index * 2, buf, 2);		\
++}									\
++static DEVICE_ATTR_RO(_name##_index)
++
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 0);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 1);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 2);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 3);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 4);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 5);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 6);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 7);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 8);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 9);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 10);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 11);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 12);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 13);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 14);
++UFS_POWER_DESC_PARAM(active_icc_levels_vcc, _ACTIVE_LVLS_VCC, 15);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 0);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 1);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 2);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 3);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 4);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 5);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 6);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 7);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 8);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 9);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 10);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 11);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 12);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 13);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 14);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq, _ACTIVE_LVLS_VCCQ, 15);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 0);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 1);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 2);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 3);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 4);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 5);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 6);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 7);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 8);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 9);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 10);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 11);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 12);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 13);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 14);
++UFS_POWER_DESC_PARAM(active_icc_levels_vccq2, _ACTIVE_LVLS_VCCQ2, 15);
++
++static struct attribute *ufs_sysfs_power_descriptor[] = {
++	&dev_attr_active_icc_levels_vcc0.attr,
++	&dev_attr_active_icc_levels_vcc1.attr,
++	&dev_attr_active_icc_levels_vcc2.attr,
++	&dev_attr_active_icc_levels_vcc3.attr,
++	&dev_attr_active_icc_levels_vcc4.attr,
++	&dev_attr_active_icc_levels_vcc5.attr,
++	&dev_attr_active_icc_levels_vcc6.attr,
++	&dev_attr_active_icc_levels_vcc7.attr,
++	&dev_attr_active_icc_levels_vcc8.attr,
++	&dev_attr_active_icc_levels_vcc9.attr,
++	&dev_attr_active_icc_levels_vcc10.attr,
++	&dev_attr_active_icc_levels_vcc11.attr,
++	&dev_attr_active_icc_levels_vcc12.attr,
++	&dev_attr_active_icc_levels_vcc13.attr,
++	&dev_attr_active_icc_levels_vcc14.attr,
++	&dev_attr_active_icc_levels_vcc15.attr,
++	&dev_attr_active_icc_levels_vccq0.attr,
++	&dev_attr_active_icc_levels_vccq1.attr,
++	&dev_attr_active_icc_levels_vccq2.attr,
++	&dev_attr_active_icc_levels_vccq3.attr,
++	&dev_attr_active_icc_levels_vccq4.attr,
++	&dev_attr_active_icc_levels_vccq5.attr,
++	&dev_attr_active_icc_levels_vccq6.attr,
++	&dev_attr_active_icc_levels_vccq7.attr,
++	&dev_attr_active_icc_levels_vccq8.attr,
++	&dev_attr_active_icc_levels_vccq9.attr,
++	&dev_attr_active_icc_levels_vccq10.attr,
++	&dev_attr_active_icc_levels_vccq11.attr,
++	&dev_attr_active_icc_levels_vccq12.attr,
++	&dev_attr_active_icc_levels_vccq13.attr,
++	&dev_attr_active_icc_levels_vccq14.attr,
++	&dev_attr_active_icc_levels_vccq15.attr,
++	&dev_attr_active_icc_levels_vccq20.attr,
++	&dev_attr_active_icc_levels_vccq21.attr,
++	&dev_attr_active_icc_levels_vccq22.attr,
++	&dev_attr_active_icc_levels_vccq23.attr,
++	&dev_attr_active_icc_levels_vccq24.attr,
++	&dev_attr_active_icc_levels_vccq25.attr,
++	&dev_attr_active_icc_levels_vccq26.attr,
++	&dev_attr_active_icc_levels_vccq27.attr,
++	&dev_attr_active_icc_levels_vccq28.attr,
++	&dev_attr_active_icc_levels_vccq29.attr,
++	&dev_attr_active_icc_levels_vccq210.attr,
++	&dev_attr_active_icc_levels_vccq211.attr,
++	&dev_attr_active_icc_levels_vccq212.attr,
++	&dev_attr_active_icc_levels_vccq213.attr,
++	&dev_attr_active_icc_levels_vccq214.attr,
++	&dev_attr_active_icc_levels_vccq215.attr,
++	NULL,
++};
++
++static const struct attribute_group ufs_sysfs_power_descriptor_group = {
++	.name = "power_descriptor",
++	.attrs = ufs_sysfs_power_descriptor,
++};
++
++#define UFS_STRING_DESCRIPTOR(_name, _pname)				\
++static ssize_t _name##_show(struct device *dev,				\
++	struct device_attribute *attr, char *buf)			\
++{									\
++	u8 index;							\
++	struct ufs_hba *hba = dev_get_drvdata(dev);			\
++	int ret;							\
++	int desc_len = QUERY_DESC_MAX_SIZE;				\
++	u8 *desc_buf;							\
++	desc_buf = kzalloc(QUERY_DESC_MAX_SIZE, GFP_ATOMIC);		\
++	if (!desc_buf)							\
++		return -ENOMEM;						\
++	ret = ufshcd_query_descriptor_retry(hba,			\
++		UPIU_QUERY_OPCODE_READ_DESC, QUERY_DESC_IDN_DEVICE,	\
++		0, 0, desc_buf, &desc_len);				\
++	if (ret) {							\
++		ret = -EINVAL;						\
++		goto out;						\
++	}								\
++	index = desc_buf[DEVICE_DESC_PARAM##_pname];			\
++	memset(desc_buf, 0, QUERY_DESC_MAX_SIZE);			\
++	if (ufshcd_read_string_desc(hba, index, desc_buf,		\
++		QUERY_DESC_MAX_SIZE, true)) {				\
++		ret = -EINVAL;						\
++		goto out;						\
++	}								\
++	ret = snprintf(buf, PAGE_SIZE, "%s\n",				\
++		desc_buf + QUERY_DESC_HDR_SIZE);			\
++out:									\
++	kfree(desc_buf);						\
++	return ret;							\
++}									\
++static DEVICE_ATTR_RO(_name)
++
++UFS_STRING_DESCRIPTOR(manufacturer_name, _MANF_NAME);
++UFS_STRING_DESCRIPTOR(product_name, _PRDCT_NAME);
++UFS_STRING_DESCRIPTOR(oem_id, _OEM_ID);
++UFS_STRING_DESCRIPTOR(serial_number, _SN);
++UFS_STRING_DESCRIPTOR(product_revision, _PRDCT_REV);
++
++static struct attribute *ufs_sysfs_string_descriptors[] = {
++	&dev_attr_manufacturer_name.attr,
++	&dev_attr_product_name.attr,
++	&dev_attr_oem_id.attr,
++	&dev_attr_serial_number.attr,
++	&dev_attr_product_revision.attr,
++	NULL,
++};
++
++static const struct attribute_group ufs_sysfs_string_descriptors_group = {
++	.name = "string_descriptors",
++	.attrs = ufs_sysfs_string_descriptors,
++};
++
++#define UFS_FLAG(_name, _uname)						\
++static ssize_t _name##_show(struct device *dev,				\
++	struct device_attribute *attr, char *buf)			\
++{									\
++	bool flag;							\
++	struct ufs_hba *hba = dev_get_drvdata(dev);			\
++	if (ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_READ_FLAG,	\
++		QUERY_FLAG_IDN##_uname, &flag))				\
++		return -EINVAL;						\
++	return sprintf(buf, "%s\n", flag ? "true" : "false");		\
++}									\
++static DEVICE_ATTR_RO(_name)
++
++UFS_FLAG(device_init, _FDEVICEINIT);
++UFS_FLAG(permanent_wpe, _PERMANENT_WPE);
++UFS_FLAG(power_on_wpe, _PWR_ON_WPE);
++UFS_FLAG(bkops_enable, _BKOPS_EN);
++UFS_FLAG(life_span_mode_enable, _LIFE_SPAN_MODE_ENABLE);
++UFS_FLAG(phy_resource_removal, _FPHYRESOURCEREMOVAL);
++UFS_FLAG(busy_rtc, _BUSY_RTC);
++UFS_FLAG(disable_fw_update, _PERMANENTLY_DISABLE_FW_UPDATE);
++
++static struct attribute *ufs_sysfs_device_flags[] = {
++	&dev_attr_device_init.attr,
++	&dev_attr_permanent_wpe.attr,
++	&dev_attr_power_on_wpe.attr,
++	&dev_attr_bkops_enable.attr,
++	&dev_attr_life_span_mode_enable.attr,
++	&dev_attr_phy_resource_removal.attr,
++	&dev_attr_busy_rtc.attr,
++	&dev_attr_disable_fw_update.attr,
++	NULL,
++};
++
++static const struct attribute_group ufs_sysfs_flags_group = {
++	.name = "flags",
++	.attrs = ufs_sysfs_device_flags,
++};
++
++#define UFS_ATTRIBUTE(_name, _uname)					\
++static ssize_t _name##_show(struct device *dev,				\
++	struct device_attribute *attr, char *buf)			\
++{									\
++	struct ufs_hba *hba = dev_get_drvdata(dev);			\
++	u32 value;							\
++	if (ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,	\
++		QUERY_ATTR_IDN##_uname, 0, 0, &value))			\
++		return -EINVAL;						\
++	return sprintf(buf, "0x%08X\n", value);				\
++}									\
++static DEVICE_ATTR_RO(_name)
++
++UFS_ATTRIBUTE(boot_lun_enabled, _BOOT_LU_EN);
++UFS_ATTRIBUTE(current_power_mode, _POWER_MODE);
++UFS_ATTRIBUTE(active_icc_level, _ACTIVE_ICC_LVL);
++UFS_ATTRIBUTE(ooo_data_enabled, _OOO_DATA_EN);
++UFS_ATTRIBUTE(bkops_status, _BKOPS_STATUS);
++UFS_ATTRIBUTE(purge_status, _PURGE_STATUS);
++UFS_ATTRIBUTE(max_data_in_size, _MAX_DATA_IN);
++UFS_ATTRIBUTE(max_data_out_size, _MAX_DATA_OUT);
++UFS_ATTRIBUTE(reference_clock_frequency, _REF_CLK_FREQ);
++UFS_ATTRIBUTE(configuration_descriptor_lock, _CONF_DESC_LOCK);
++UFS_ATTRIBUTE(max_number_of_rtt, _MAX_NUM_OF_RTT);
++UFS_ATTRIBUTE(exception_event_control, _EE_CONTROL);
++UFS_ATTRIBUTE(exception_event_status, _EE_STATUS);
++UFS_ATTRIBUTE(ffu_status, _FFU_STATUS);
++UFS_ATTRIBUTE(psa_state, _PSA_STATE);
++UFS_ATTRIBUTE(psa_data_size, _PSA_DATA_SIZE);
++
++static struct attribute *ufs_sysfs_attributes[] = {
++	&dev_attr_boot_lun_enabled.attr,
++	&dev_attr_current_power_mode.attr,
++	&dev_attr_active_icc_level.attr,
++	&dev_attr_ooo_data_enabled.attr,
++	&dev_attr_bkops_status.attr,
++	&dev_attr_purge_status.attr,
++	&dev_attr_max_data_in_size.attr,
++	&dev_attr_max_data_out_size.attr,
++	&dev_attr_reference_clock_frequency.attr,
++	&dev_attr_configuration_descriptor_lock.attr,
++	&dev_attr_max_number_of_rtt.attr,
++	&dev_attr_exception_event_control.attr,
++	&dev_attr_exception_event_status.attr,
++	&dev_attr_ffu_status.attr,
++	&dev_attr_psa_state.attr,
++	&dev_attr_psa_data_size.attr,
++	NULL,
++};
++
++static const struct attribute_group ufs_sysfs_attributes_group = {
++	.name = "attributes",
++	.attrs = ufs_sysfs_attributes,
++};
++
++static const struct attribute_group *ufs_sysfs_groups[] = {
++	&ufs_sysfs_default_group,
++	&ufs_sysfs_device_descriptor_group,
++	&ufs_sysfs_interconnect_descriptor_group,
++	&ufs_sysfs_geometry_descriptor_group,
++	&ufs_sysfs_health_descriptor_group,
++	&ufs_sysfs_power_descriptor_group,
++	&ufs_sysfs_string_descriptors_group,
++	&ufs_sysfs_flags_group,
++	&ufs_sysfs_attributes_group,
++	NULL,
++};
++
++#define UFS_LUN_DESC_PARAM(_pname, _puname, _duname, _size)		\
++static ssize_t _pname##_show(struct device *dev,			\
++	struct device_attribute *attr, char *buf)			\
++{									\
++	struct scsi_device *sdev = to_scsi_device(dev);			\
++	struct ufs_hba *hba = shost_priv(sdev->host);			\
++	u8 lun = ufshcd_scsi_to_upiu_lun(sdev->lun);			\
++	if (!ufs_is_valid_unit_desc_lun(lun))				\
++		return -EINVAL;						\
++	return ufs_sysfs_read_desc_param(hba, QUERY_DESC_IDN_##_duname,	\
++		lun, _duname##_DESC_PARAM##_puname, buf, _size);	\
++}									\
++static DEVICE_ATTR_RO(_pname)
++
++#define UFS_UNIT_DESC_PARAM(_name, _uname, _size)			\
++	UFS_LUN_DESC_PARAM(_name, _uname, UNIT, _size)
++
++UFS_UNIT_DESC_PARAM(boot_lun_id, _BOOT_LUN_ID, 1);
++UFS_UNIT_DESC_PARAM(lun_write_protect, _LU_WR_PROTECT, 1);
++UFS_UNIT_DESC_PARAM(lun_queue_depth, _LU_Q_DEPTH, 1);
++UFS_UNIT_DESC_PARAM(psa_sensitive, _PSA_SENSITIVE, 1);
++UFS_UNIT_DESC_PARAM(lun_memory_type, _MEM_TYPE, 1);
++UFS_UNIT_DESC_PARAM(data_reliability, _DATA_RELIABILITY, 1);
++UFS_UNIT_DESC_PARAM(logical_block_size, _LOGICAL_BLK_SIZE, 1);
++UFS_UNIT_DESC_PARAM(logical_block_count, _LOGICAL_BLK_COUNT, 8);
++UFS_UNIT_DESC_PARAM(erase_block_size, _ERASE_BLK_SIZE, 4);
++UFS_UNIT_DESC_PARAM(provisioning_type, _PROVISIONING_TYPE, 1);
++UFS_UNIT_DESC_PARAM(physical_memory_resourse_count, _PHY_MEM_RSRC_CNT, 8);
++UFS_UNIT_DESC_PARAM(context_capabilities, _CTX_CAPABILITIES, 2);
++UFS_UNIT_DESC_PARAM(large_unit_granularity, _LARGE_UNIT_SIZE_M1, 1);
++
++static struct attribute *ufs_sysfs_unit_descriptor[] = {
++	&dev_attr_boot_lun_id.attr,
++	&dev_attr_lun_write_protect.attr,
++	&dev_attr_lun_queue_depth.attr,
++	&dev_attr_psa_sensitive.attr,
++	&dev_attr_lun_memory_type.attr,
++	&dev_attr_data_reliability.attr,
++	&dev_attr_logical_block_size.attr,
++	&dev_attr_logical_block_count.attr,
++	&dev_attr_erase_block_size.attr,
++	&dev_attr_provisioning_type.attr,
++	&dev_attr_physical_memory_resourse_count.attr,
++	&dev_attr_context_capabilities.attr,
++	&dev_attr_large_unit_granularity.attr,
++	NULL,
++};
++
++const struct attribute_group ufs_sysfs_unit_descriptor_group = {
++	.name = "unit_descriptor",
++	.attrs = ufs_sysfs_unit_descriptor,
++};
++
++static ssize_t dyn_cap_needed_attribute_show(struct device *dev,
++	struct device_attribute *attr, char *buf)
++{
++	u32 value;
++	struct scsi_device *sdev = to_scsi_device(dev);
++	struct ufs_hba *hba = shost_priv(sdev->host);
++	u8 lun = ufshcd_scsi_to_upiu_lun(sdev->lun);
++
++	if (ufshcd_query_attr(hba, UPIU_QUERY_OPCODE_READ_ATTR,
++		QUERY_ATTR_IDN_DYN_CAP_NEEDED, lun, 0, &value))
++		return -EINVAL;
++	return sprintf(buf, "0x%08X\n", value);
++}
++static DEVICE_ATTR_RO(dyn_cap_needed_attribute);
++
++static struct attribute *ufs_sysfs_lun_attributes[] = {
++	&dev_attr_dyn_cap_needed_attribute.attr,
++	NULL,
++};
++
++const struct attribute_group ufs_sysfs_lun_attributes_group = {
++	.attrs = ufs_sysfs_lun_attributes,
++};
++
++void ufs_sysfs_add_nodes(struct device *dev)
++{
++	int ret;
++
++	ret = sysfs_create_groups(&dev->kobj, ufs_sysfs_groups);
++	if (ret)
++		dev_err(dev,
++			"%s: sysfs groups creation failed (err = %d)\n",
++			__func__, ret);
++}
++
++void ufs_sysfs_remove_nodes(struct device *dev)
++{
++	sysfs_remove_groups(&dev->kobj, ufs_sysfs_groups);
++}
+diff --git a/drivers/scsi/ufs/ufs-sysfs.h b/drivers/scsi/ufs/ufs-sysfs.h
+new file mode 100644
+index 0000000..e5621e5
+--- /dev/null
++++ b/drivers/scsi/ufs/ufs-sysfs.h
+@@ -0,0 +1,17 @@
++/* SPDX-License-Identifier: GPL-2.0
++ * Copyright (C) 2018 Western Digital Corporation
++ */
++
++#ifndef __UFS_SYSFS_H__
++#define __UFS_SYSFS_H__
++
++#include <linux/sysfs.h>
++
++#include "ufshcd.h"
++
++void ufs_sysfs_add_nodes(struct device *dev);
++void ufs_sysfs_remove_nodes(struct device *dev);
++
++extern const struct attribute_group ufs_sysfs_unit_descriptor_group;
++extern const struct attribute_group ufs_sysfs_lun_attributes_group;
++#endif
+diff --git a/drivers/scsi/ufs/ufshcd.c b/drivers/scsi/ufs/ufshcd.c
+index 73657b9..a38e4ef 100644
+--- a/drivers/scsi/ufs/ufshcd.c
++++ b/drivers/scsi/ufs/ufshcd.c
+@@ -45,6 +45,7 @@
+ #include <linux/blkdev.h>
+ #include <asm/unaligned.h>
+ #include "ufshcd.h"
++#include "ufs-sysfs.h"
+ #include "ufs_quirks.h"
+ #include "unipro.h"
+ #include "ufs-debugfs.h"
+@@ -338,7 +339,7 @@ enum {
+ #define ufshcd_is_ufs_dev_poweroff(h) \
+ 	((h)->curr_dev_pwr_mode == UFS_POWERDOWN_PWR_MODE)
+ 
+-static struct ufs_pm_lvl_states ufs_pm_lvl_states[] = {
++struct ufs_pm_lvl_states ufs_pm_lvl_states[] = {
+ 	{UFS_ACTIVE_PWR_MODE, UIC_LINK_ACTIVE_STATE},
+ 	{UFS_ACTIVE_PWR_MODE, UIC_LINK_HIBERN8_STATE},
+ 	{UFS_SLEEP_PWR_MODE, UIC_LINK_ACTIVE_STATE},
+@@ -3886,21 +3887,6 @@ static int ufshcd_comp_scsi_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+ 	return ret;
+ }
+ 
+-/*
+- * ufshcd_scsi_to_upiu_lun - maps scsi LUN to UPIU LUN
+- * @scsi_lun: scsi LUN id
+- *
+- * Returns UPIU LUN id
+- */
+-static inline u8 ufshcd_scsi_to_upiu_lun(unsigned int scsi_lun)
+-{
+-	if (scsi_is_wlun(scsi_lun))
+-		return (scsi_lun & UFS_UPIU_MAX_UNIT_NUM_ID)
+-			| UFS_UPIU_WLUN_ID;
+-	else
+-		return scsi_lun & UFS_UPIU_MAX_UNIT_NUM_ID;
+-}
+-
+ /**
+  * ufshcd_upiu_wlun_to_scsi_wlun - maps UPIU W-LUN id to SCSI W-LUN ID
+  * @scsi_lun: UPIU W-LUN id
+@@ -4453,8 +4439,8 @@ static inline void ufshcd_init_query(struct ufs_hba *hba,
+ 	ufshcd_update_query_stats(hba, opcode, idn);
+ }
+ 
+-static int ufshcd_query_flag_retry(struct ufs_hba *hba,
+-	enum query_opcode opcode, enum flag_idn idn, bool *flag_res)
++int ufshcd_query_flag_retry(struct ufs_hba *hba, enum query_opcode opcode,
++			    enum flag_idn idn, bool *flag_res)
+ {
+ 	int ret;
+ 	int retries;
+@@ -4621,9 +4607,9 @@ out:
+  *
+  * Returns 0 for success, non-zero in case of failure
+ */
+-static int ufshcd_query_attr_retry(struct ufs_hba *hba,
+-	enum query_opcode opcode, enum attr_idn idn, u8 index, u8 selector,
+-	u32 *attr_val)
++int ufshcd_query_attr_retry(struct ufs_hba *hba, enum query_opcode opcode,
++			    enum attr_idn idn, u8 index, u8 selector,
++			    u32 *attr_val)
+ {
+ 	int ret = 0;
+ 	u32 retries;
+@@ -4842,12 +4828,9 @@ EXPORT_SYMBOL(ufshcd_map_desc_id_to_length);
+  *
+  * Return 0 in case of success, non-zero otherwise
+  */
+-static int ufshcd_read_desc_param(struct ufs_hba *hba,
+-				  enum desc_idn desc_id,
+-				  int desc_index,
+-				  u8 param_offset,
+-				  u8 *param_read_buf,
+-				  u8 param_size)
++int ufshcd_read_desc_param(struct ufs_hba *hba, enum desc_idn desc_id,
++			   int desc_index, u8 param_offset, u8 *param_read_buf,
++			   u8 param_size)
+ {
+ 	int ret;
+ 	u8 *desc_buf;
+@@ -5088,9 +5071,8 @@ out:
+  *
+  * Return 0 in case of success, non-zero otherwise
+  */
+-#define ASCII_STD true
+-static int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index,
+-				   u8 *buf, u32 size, bool ascii)
++int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index, u8 *buf,
++			    u32 size, bool ascii)
+ {
+ 	int err = 0;
+ 
+@@ -9995,6 +9977,12 @@ static int ufshcd_ioctl(struct scsi_device *dev, int cmd, void __user *buffer)
+ 	return err;
+ }
+ 
++static const struct attribute_group *ufshcd_driver_groups[] = {
++	&ufs_sysfs_unit_descriptor_group,
++	&ufs_sysfs_lun_attributes_group,
++	NULL,
++};
++
+ static struct scsi_host_template ufshcd_driver_template = {
+ 	.module			= THIS_MODULE,
+ 	.name			= UFSHCD,
+@@ -10018,6 +10006,7 @@ static struct scsi_host_template ufshcd_driver_template = {
+ 	.can_queue		= UFSHCD_CAN_QUEUE,
+ 	.max_host_blocked	= 1,
+ 	.track_queue_depth	= 1,
++	.sdev_groups		= ufshcd_driver_groups,
+ };
+ 
+ static int ufshcd_config_vreg_load(struct device *dev, struct ufs_vreg *vreg,
+@@ -11737,6 +11726,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
+ 	ufshcd_cmd_log_init(hba);
+ 
+ 	async_schedule(ufshcd_async_scan, hba);
++	ufs_sysfs_add_nodes(hba->dev);
+ 
+ 	ufsdbg_add_debugfs(hba);
+ 
+diff --git a/drivers/scsi/ufs/ufshcd.h b/drivers/scsi/ufs/ufshcd.h
+index 4441884..62e1e53 100644
+--- a/drivers/scsi/ufs/ufshcd.h
++++ b/drivers/scsi/ufs/ufshcd.h
+@@ -1322,13 +1322,25 @@ static inline void ufshcd_init_req_stats(struct ufs_hba *hba) {}
+ #endif
+ 
+ /* Expose Query-Request API */
++int ufshcd_read_desc_param(struct ufs_hba *hba, enum desc_idn desc_id,
++			   int desc_index, u8 param_offset, u8 *param_read_buf,
++			   u8 param_size);
+ int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
+ 	enum flag_idn idn, bool *flag_res);
++int ufshcd_query_flag_retry(struct ufs_hba *hba,
++	enum query_opcode opcode, enum flag_idn idn, bool *flag_res);
+ int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
+ 	enum attr_idn idn, u8 index, u8 selector, u32 *attr_val);
++int ufshcd_query_attr_retry(struct ufs_hba *hba,
++	enum query_opcode opcode, enum attr_idn idn, u8 index, u8 selector,
++	u32 *attr_val);
+ int ufshcd_query_descriptor_retry(struct ufs_hba *hba, enum query_opcode opcode,
+ 	enum desc_idn idn, u8 index, u8 selector, u8 *desc_buf, int *buf_len);
+ 
++#define ASCII_STD true
++int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index, u8 *buf,
++			    u32 size, bool ascii);
++
+ int ufshcd_hold(struct ufs_hba *hba, bool async);
+ void ufshcd_release(struct ufs_hba *hba, bool no_sched);
+ int ufshcd_wait_for_doorbell_clr(struct ufs_hba *hba, u64 wait_timeout_us);
+@@ -1599,4 +1611,21 @@ static inline void ufshcd_vops_pm_qos_req_end(struct ufs_hba *hba,
+ 		hba->var->pm_qos_vops->req_end(hba, req, lock);
+ }
+ 
++extern struct ufs_pm_lvl_states ufs_pm_lvl_states[];
++
++/*
++ * ufshcd_scsi_to_upiu_lun - maps scsi LUN to UPIU LUN
++ * @scsi_lun: scsi LUN id
++ *
++ * Returns UPIU LUN id
++ */
++static inline u8 ufshcd_scsi_to_upiu_lun(unsigned int scsi_lun)
++{
++	if (scsi_is_wlun(scsi_lun))
++		return (scsi_lun & UFS_UPIU_MAX_UNIT_NUM_ID)
++			| UFS_UPIU_WLUN_ID;
++	else
++		return scsi_lun & UFS_UPIU_MAX_UNIT_NUM_ID;
++}
++
+ #endif /* End of Header */
+diff --git a/include/scsi/scsi_host.h b/include/scsi/scsi_host.h
+index 0472647..c5322d4 100644
+--- a/include/scsi/scsi_host.h
++++ b/include/scsi/scsi_host.h
+@@ -480,6 +480,12 @@ struct scsi_host_template {
+ 	struct device_attribute **sdev_attrs;
+ 
+ 	/*
++	 * Pointer to the SCSI device attribute groups for this host,
++	 * NULL terminated.
++	 */
++	const struct attribute_group **sdev_groups;
++
++	/*
+ 	 * List of hosts per template.
+ 	 *
+ 	 * This is only for use by scsi_module.c for legacy templates.
+-- 
+2.7.4
+

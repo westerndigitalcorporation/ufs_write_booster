@@ -1,0 +1,64 @@
+From fbe7de2518a4143a4026c636d6b7b6179988905c Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Wed, 3 Apr 2019 19:57:26 +0300
+Subject: [PATCH 22/25] scsi: ufs: Use turbo-write in concert with DVFS
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The DVFS governor, triggers a scaling action (calling its target()
+callback) whenever it decide that a scale/up down is necessary.  It is
+making those decisions based on the system load, which contains all
+kinds of requests – not necessarily writes.  Therefore, theoretically,
+we should not use those triggers simply as it is.  Similarly, we cannot
+replicate this mechanism just to account for write requests as it comes
+with a serious cost – the DVFS with its accompanying clock scaling is a
+heavy weight sub-module, both in code as well as in performance.
+
+Nevertheless, let us re-examine the option of using the clock scaling as
+it is.  Looking at the read/write load options - we might have decide
+differently on option 3:
+
+	read	write	turbo-write
+-----------------------------------
+1 |	low  |	low   |	OFF
+2 |	low  |	high  |	ON
+3 |	high |	low   |	ON
+4 |	high |	high  |	ON
+
+However, the cost is negligible – so few writes will get a higher
+priority than they should, which is merely a second order mistake.  The
+upside is re-using the already existing clock scaling mechanism.  So on
+high load, either one - read or write, enable turbo-write mode, and when
+the load decreases – disable it.
+
+Luckily, the scale_up Boolean in ufshcd_devfreq_target() is doing
+exactly that.  We will use it to enable/disable turbo write, just before
+it performs the clock scaling, so that we will have the device ready
+before the host is tempering with the bus clocks.
+
+Change-Id: Id7974ac5df8d74776e411589d45a943495f35ff0
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufshcd.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufshcd.c b/drivers/scsi/ufs/ufshcd.c
+index bceebb8..77739a3 100644
+--- a/drivers/scsi/ufs/ufshcd.c
++++ b/drivers/scsi/ufs/ufshcd.c
+@@ -2234,6 +2234,11 @@ static int ufshcd_devfreq_target(struct device *dev,
+ 	}
+ 	spin_unlock_irqrestore(hba->host->host_lock, irq_flags);
+ 
++	if (scale_up)
++		ufshcd_enable_turbo_write(hba);
++	else
++		ufshcd_disable_turbo_write(hba);
++
+ 	start = ktime_get();
+ 	ret = ufshcd_devfreq_scale(hba, scale_up);
+ 	trace_ufshcd_profile_clk_scaling(dev_name(hba->dev),
+-- 
+2.7.4
+

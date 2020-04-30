@@ -1,0 +1,26 @@
+From b49e3d3e5cb230ab5938c0041c83cf495acf8d43 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Wed, 24 Apr 2019 08:44:51 +0300
+Subject: [PATCH 25/25] [DEBUG] scsi: ufs-qcom: Enable turbo-write
+
+Change-Id: If2e70e3e1c59a6c2a7b7930af27e69e3bfdf8055
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs-qcom.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/scsi/ufs/ufs-qcom.c b/drivers/scsi/ufs/ufs-qcom.c
+index 349a993..19e7e2c 100644
+--- a/drivers/scsi/ufs/ufs-qcom.c
++++ b/drivers/scsi/ufs/ufs-qcom.c
+@@ -1569,6 +1569,7 @@ static void ufs_qcom_set_caps(struct ufs_hba *hba)
+ 		hba->caps |= UFSHCD_CAP_CLK_SCALING;
+ 	}
+ 	hba->caps |= UFSHCD_CAP_AUTO_BKOPS_SUSPEND;
++	hba->caps |= UFSHCD_CAP_TURBO_WRITE;
+ 
+ 	if (host->hw_ver.major >= 0x2) {
+ 		if (!host->disable_lpm)
+-- 
+2.7.4
+

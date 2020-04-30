@@ -1,0 +1,38 @@
+From b7564be307d89ed6b586d231a36ebb4361314ccf Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Tue, 21 Aug 2018 17:23:02 +0300
+Subject: [PATCH 08/25] scsi: ufs-sysfs: Add turbo-write flags
+
+Change-Id: If3e09b3321608ac9b5709aae24a47c19bae46973
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs-sysfs.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufs-sysfs.c b/drivers/scsi/ufs/ufs-sysfs.c
+index b030db5..26f2303 100644
+--- a/drivers/scsi/ufs/ufs-sysfs.c
++++ b/drivers/scsi/ufs/ufs-sysfs.c
+@@ -561,6 +561,9 @@ UFS_FLAG(life_span_mode_enable, _LIFE_SPAN_MODE_ENABLE);
+ UFS_FLAG(phy_resource_removal, _FPHYRESOURCEREMOVAL);
+ UFS_FLAG(busy_rtc, _BUSY_RTC);
+ UFS_FLAG(disable_fw_update, _PERMANENTLY_DISABLE_FW_UPDATE);
++UFS_FLAG(turbo_write_enable, _TW_EN);
++UFS_FLAG(turbo_write_flush, _TW_FLUSH);
++UFS_FLAG(turbo_write_flush_hibern8, _TW_FLUSH_HIBERN);
+ 
+ static struct attribute *ufs_sysfs_device_flags[] = {
+ 	&dev_attr_device_init.attr,
+@@ -571,6 +574,9 @@ static struct attribute *ufs_sysfs_device_flags[] = {
+ 	&dev_attr_phy_resource_removal.attr,
+ 	&dev_attr_busy_rtc.attr,
+ 	&dev_attr_disable_fw_update.attr,
++	&dev_attr_turbo_write_enable.attr,
++	&dev_attr_turbo_write_flush.attr,
++	&dev_attr_turbo_write_flush_hibern8.attr,
+ 	NULL,
+ };
+ 
+-- 
+2.7.4
+

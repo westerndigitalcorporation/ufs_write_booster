@@ -1,0 +1,82 @@
+From dadc5112e2d8ddd6fa5325bc4c677b52fa32282e Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Wed, 10 Apr 2019 17:07:53 +0300
+Subject: [PATCH 24/25] scsi: ufs: Add trace for turbo-write attributes
+
+The content of an attribute read query command, is encoded within the
+upiu response.  The current upiu tracer however - copy the upiu request
+both on request and response.  Add this as a new upiu trace point, only
+for dAvailableTurboWriteBufferSize and dTurboWriteBufferLifeTimeEst read
+requests. Use a slightly different token - "rsp_complete" to help the
+Perceptor parser to identify those instances.
+
+Change-Id: Ib3ab63e04411da4a880c9ab765519cf9222b9fd2
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufshcd.c | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufshcd.c b/drivers/scsi/ufs/ufshcd.c
+index bf9c3ba..cefc97b 100644
+--- a/drivers/scsi/ufs/ufshcd.c
++++ b/drivers/scsi/ufs/ufshcd.c
+@@ -735,6 +735,26 @@ static inline void ufshcd_get_command_data(struct ufs_hba *hba,
+ 	}
+ }
+ 
++static inline bool ufshcd_is_tw_read_avail_buffer(struct ufs_hba *hba,
++						  struct ufshcd_lrb *lrbp)
++{
++	bool ret = false;
++
++	if (!ufshcd_is_tw_supported(hba))
++		goto out;
++
++	if (lrbp->ucd_req_ptr->qr.opcode != UPIU_QUERY_OPCODE_READ_ATTR)
++		goto out;
++
++	if (lrbp->ucd_req_ptr->qr.idn != QUERY_ATTR_IDN_TW_AVAIL_BUF_SIZE &&
++	    lrbp->ucd_req_ptr->qr.idn != QUERY_ATTR_IDN_TW_LIFE_TIME_EST)
++		goto out;
++
++	ret = true;
++out:
++	return ret;
++}
++
+ static inline void ufshcd_add_trace(struct ufs_hba *hba,
+ 				  struct ufshcd_trace_entry *ute)
+ {
+@@ -750,11 +770,20 @@ static inline void ufshcd_add_trace(struct ufs_hba *hba,
+ 	 */
+ 	if (off < 0) {
+ 		struct utp_upiu_req *rq;
++		struct utp_upiu_rsp *rsp;
+ 		u8 txn_code;
+ 
+ 		rq = hba->lrb[ute->tag].ucd_req_ptr;
+ 		upiu_buf = (u8 *)&rq->qr;
+ 		hdr = (u8 *)&rq->header;
++		if (unlikely(!strcmp(ute->str, "rsp_complete"))){
++			if (!ufshcd_is_tw_read_avail_buffer(hba,
++							&hba->lrb[ute->tag]))
++				return;
++			rsp = hba->lrb[ute->tag].ucd_rsp_ptr;
++			upiu_buf = (u8 *)&rsp->qr;
++			hdr = (u8 *)&rsp->header;
++		}
+ 		txn_code = hdr[0] & 0x3f;
+ 		if (txn_code == UPIU_TRANSACTION_COMMAND) {
+ 			upiu_buf = (u8 *)&rq->sc.cdb;
+@@ -7149,6 +7178,8 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
+ 			lrbp->command_type == UTP_CMD_TYPE_UFS_STORAGE) {
+ 			if (hba->dev_cmd.complete) {
+ 				ufshcd_cond_add_trace(hba, index,
++						      "rsp_complete", false);
++				ufshcd_cond_add_trace(hba, index,
+ 						"complete", false);
+ 				complete(hba->dev_cmd.complete);
+ 			}
+-- 
+2.7.4
+

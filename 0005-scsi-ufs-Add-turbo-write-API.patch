@@ -1,0 +1,254 @@
+From a05e039c4f1111b56ac4699abf7d9d38ad3bede0 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Sun, 4 Nov 2018 11:11:30 +0200
+Subject: [PATCH 05/25] scsi: ufs: Add turbo-write API
+
+Add an API to set/clear turbo-write, and to flush its buffer.
+
+Change-Id: I03571c6677de81765d01f7da31705e14ff70c430
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufshcd.c | 163 ++++++++++++++++++++++++++++++++++++++++++++++
+ drivers/scsi/ufs/ufshcd.h |  31 +++++++++
+ 2 files changed, 194 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufshcd.c b/drivers/scsi/ufs/ufshcd.c
+index c9799fb..99f5e7a 100644
+--- a/drivers/scsi/ufs/ufshcd.c
++++ b/drivers/scsi/ufs/ufshcd.c
+@@ -6325,6 +6325,169 @@ static int ufshcd_verify_dev_init(struct ufs_hba *hba)
+ }
+ 
+ /**
++ * ufshcd_enable_turbo_write - enable turbo write
++ *
++ * Set QUERY_FLAG_IDN_TW_EN flag.
++ */
++int ufshcd_enable_turbo_write(struct ufs_hba *hba)
++{
++	int err = 0;
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	if (hba->tw_enabled)
++		goto out;
++
++	err = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_SET_FLAG,
++				      QUERY_FLAG_IDN_TW_EN, NULL);
++	if (err) {
++		dev_err(hba->dev, "failed to enable turbo-write %d\n", err);
++		goto out;
++	}
++
++	hba->tw_enabled = true;
++
++out:
++	return err;
++}
++
++/**
++ * ufshcd_disable_turbo_write - disable turbo write
++ *
++ * Clear QUERY_FLAG_IDN_TW_EN flag.
++ */
++int ufshcd_disable_turbo_write(struct ufs_hba *hba)
++{
++	int err = 0;
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	if (!hba->tw_enabled)
++		goto out;
++
++	err = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_CLEAR_FLAG,
++				      QUERY_FLAG_IDN_TW_EN, NULL);
++	if (err) {
++		dev_err(hba->dev, "failed to disable turbo-write %d\n", err);
++		goto out;
++	}
++
++	hba->tw_enabled = false;
++
++out:
++	return err;
++}
++
++/**
++ * ufshcd_turbo_write_flush - peform a turbo-write buffer flash
++ *
++ * When the entire buffer for Turbo Write is consumed, even though the Turbo
++ * Write command is issued, the data should be stored in normal storage instead
++ * of in the Turbo Write Buffer.
++ * There are two methods to flush the cached data in the Turbo Write Buffer to
++ * user space storage; one is using an explicit flush command. If the
++ * fTurboWriteBufferFlushEn flag is set as ‘1b’, the device shall flush the
++ * data stored in the Turbo Write Buffer to the user area of the storage.
++ * Another method is implicit flush execution whenever the device is in
++ * Hibernate State. If fTurboWriteBufferFlushDuringHibernate is set as ‘1b’,
++ * the device may flush the Turbo Write Buffer data whenever the device enters
++ * the Hibernate(HIBERN8) State automatically.
++ */
++int ufshcd_turbo_write_enable_flush_explicitly(struct ufs_hba *hba)
++{
++	int err = 0;
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	if (hba->tw_flush & UFS_TW_FLUSH_EXPLICIT)
++		goto out;
++
++	err = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_SET_FLAG,
++				      QUERY_FLAG_IDN_TW_FLUSH, NULL);
++	if (err) {
++		dev_err(hba->dev, "turbo write flush failed\n");
++		goto out;
++	}
++
++	hba->tw_flush |= UFS_TW_FLUSH_EXPLICIT;
++
++out:
++	return err;
++}
++
++int ufshcd_turbo_write_disable_flush_explicitly(struct ufs_hba *hba)
++{
++	int err = 0;
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	if (!(hba->tw_flush & UFS_TW_FLUSH_EXPLICIT))
++		goto out;
++
++	err = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_CLEAR_FLAG,
++				      QUERY_FLAG_IDN_TW_FLUSH, NULL);
++	if (err) {
++		dev_err(hba->dev, "turbo write flush failed\n");
++		goto out;
++	}
++
++	hba->tw_flush &= ~UFS_TW_FLUSH_EXPLICIT;
++
++out:
++	return err;
++}
++
++int ufshcd_turbo_write_enable_flush_on_hibern8(struct ufs_hba *hba)
++{
++	int err = 0;
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	if (hba->tw_flush & UFS_TW_FLUSH_HIBERN8)
++		goto out;
++
++	err = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_SET_FLAG,
++				      QUERY_FLAG_IDN_TW_FLUSH_HIBERN, NULL);
++	if (err) {
++		dev_err(hba->dev, "turbo write flush failed\n");
++		goto out;
++	}
++
++	hba->tw_flush |= UFS_TW_FLUSH_HIBERN8;
++
++out:
++	return err;
++}
++
++int ufshcd_turbo_write_disable_flush_on_hibern8(struct ufs_hba *hba)
++{
++	int err = 0;
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	if (!(hba->tw_flush & UFS_TW_FLUSH_HIBERN8))
++		goto out;
++
++	err = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_CLEAR_FLAG,
++				      QUERY_FLAG_IDN_TW_FLUSH_HIBERN, NULL);
++	if (err) {
++		dev_err(hba->dev, "turbo write flush failed\n");
++		goto out;
++	}
++
++	hba->tw_flush &= ~UFS_TW_FLUSH_HIBERN8;
++
++out:
++	return err;
++}
++
++/**
+  * ufshcd_set_queue_depth - set lun queue depth
+  * @sdev: pointer to SCSI device
+  *
+diff --git a/drivers/scsi/ufs/ufshcd.h b/drivers/scsi/ufs/ufshcd.h
+index c62ce0b..4441884 100644
+--- a/drivers/scsi/ufs/ufshcd.h
++++ b/drivers/scsi/ufs/ufshcd.h
+@@ -408,6 +408,17 @@ struct ufs_hba_variant {
+ 	struct ufs_hba_pm_qos_variant_ops	*pm_qos_vops;
+ };
+ 
++/**
++ * turbo write flush modes - Device is allowed to flush the TurboWrite Buffer:
++ * @UFS_TW_FLUSH_EXPLICIT:flush explicitly in reponse of acceptance of a query
++ * 			   command to set flag QUERY_FLAG_IDN_TW_FLUSH.
++ * @UFS_TW_FLUSH_HIBERN8:flush the turbo-write buffer during hibern8
++ */
++enum tw_flush_mode {
++	UFS_TW_FLUSH_EXPLICIT		= BIT(0),
++	UFS_TW_FLUSH_HIBERN8		= BIT(1),
++};
++
+ /* clock gating state  */
+ enum clk_gating_state {
+ 	CLKS_OFF,
+@@ -1058,6 +1069,13 @@ struct ufs_hba {
+ #if CONFIG_TRACEPOINTS
+ 	struct ufs_ftrace_cfg ftrace_cfg;
+ #endif
++
++
++	/* turbo-write */
++#define UFSHCD_CAP_TURBO_WRITE (1 << 8)
++	int tw_size;
++	int tw_flush;
++	bool tw_enabled;
+ };
+ 
+ static inline void ufshcd_mark_shutdown_ongoing(struct ufs_hba *hba)
+@@ -1098,6 +1116,11 @@ static inline bool ufshcd_is_power_collapse_during_hibern8_allowed(
+ 	return !!(hba->caps & UFSHCD_CAP_POWER_COLLAPSE_DURING_HIBERN8);
+ }
+ 
++static inline bool ufshcd_is_tw_supported(struct ufs_hba *hba)
++{
++	return hba->caps & UFSHCD_CAP_TURBO_WRITE;
++}
++
+ static inline bool ufshcd_is_intr_aggr_allowed(struct ufs_hba *hba)
+ {
+ /* DWC UFS Core has the Interrupt aggregation feature but is not detectable*/
+@@ -1322,6 +1345,14 @@ u32 ufshcd_get_local_unipro_ver(struct ufs_hba *hba);
+ void ufshcd_scsi_block_requests(struct ufs_hba *hba);
+ void ufshcd_scsi_unblock_requests(struct ufs_hba *hba);
+ 
++/* turbo-write API */
++int ufshcd_enable_turbo_write(struct ufs_hba *hba);
++int ufshcd_disable_turbo_write(struct ufs_hba *hba);
++int ufshcd_turbo_write_enable_flush_explicitly(struct ufs_hba *hba);
++int ufshcd_turbo_write_disable_flush_explicitly(struct ufs_hba *hba);
++int ufshcd_turbo_write_enable_flush_on_hibern8(struct ufs_hba *hba);
++int ufshcd_turbo_write_disable_flush_on_hibern8(struct ufs_hba *hba);
++
+ /* Wrapper functions for safely calling variant operations */
+ static inline const char *ufshcd_get_var_name(struct ufs_hba *hba)
+ {
+-- 
+2.7.4
+

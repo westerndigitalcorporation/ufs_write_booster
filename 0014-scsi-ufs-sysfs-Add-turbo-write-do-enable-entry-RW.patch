@@ -1,0 +1,77 @@
+From 1123db3f9a24762644a68708bc6260758739955d Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Tue, 21 Aug 2018 18:17:35 +0300
+Subject: [PATCH 14/25] scsi: ufs-sysfs: Add turbo-write-do-enable entry (RW)
+
+Allows to enable/disable turbo-write:
+enable: #echo 1 > turbo_write_do_enable
+disable: #echo 0 > turbo_write_do_enable
+
+Change-Id: Ic8d02db41935f0575ab4cc117013c1f5c29da25b
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufs-sysfs.c | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufs-sysfs.c b/drivers/scsi/ufs/ufs-sysfs.c
+index 1f6c370..9671c76 100644
+--- a/drivers/scsi/ufs/ufs-sysfs.c
++++ b/drivers/scsi/ufs/ufs-sysfs.c
+@@ -117,12 +117,46 @@ static ssize_t spm_target_link_state_show(struct device *dev,
+ 				ufs_pm_lvl_states[hba->spm_lvl].link_state));
+ }
+ 
++static ssize_t turbo_write_do_enable_show(struct device *dev,
++					  struct device_attribute *attr,
++					  char *buf)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	return sprintf(buf, "%d\n", hba->tw_enabled);
++}
++
++static ssize_t turbo_write_do_enable_store(struct device *dev,
++					   struct device_attribute *attr,
++					   const char *buf, size_t count)
++{
++	struct ufs_hba *hba = dev_get_drvdata(dev);
++	unsigned int enable;
++
++	if (!ufshcd_is_tw_supported(hba))
++		return -EOPNOTSUPP;
++
++	if (kstrtouint(buf, 0, &enable))
++		return -EINVAL;
++
++	if (enable)
++		ufshcd_enable_turbo_write(hba);
++	else
++		ufshcd_disable_turbo_write(hba);
++
++	return count;
++}
++
+ static DEVICE_ATTR_RW(rpm_lvl);
+ static DEVICE_ATTR_RO(rpm_target_dev_state);
+ static DEVICE_ATTR_RO(rpm_target_link_state);
+ static DEVICE_ATTR_RW(spm_lvl);
+ static DEVICE_ATTR_RO(spm_target_dev_state);
+ static DEVICE_ATTR_RO(spm_target_link_state);
++static DEVICE_ATTR_RW(turbo_write_do_enable);
+ 
+ static struct attribute *ufs_sysfs_ufshcd_attrs[] = {
+ 	&dev_attr_rpm_lvl.attr,
+@@ -131,6 +165,7 @@ static struct attribute *ufs_sysfs_ufshcd_attrs[] = {
+ 	&dev_attr_spm_lvl.attr,
+ 	&dev_attr_spm_target_dev_state.attr,
+ 	&dev_attr_spm_target_link_state.attr,
++	&dev_attr_turbo_write_do_enable.attr,
+ 	NULL
+ };
+ 
+-- 
+2.7.4
+

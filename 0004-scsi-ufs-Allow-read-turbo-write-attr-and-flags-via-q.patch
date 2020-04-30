@@ -1,0 +1,81 @@
+From 0ef50b4a6baa0df92fc1e212b230b02b3f75dc84 Mon Sep 17 00:00:00 2001
+From: Avri Altman <avri.altman@wdc.com>
+Date: Thu, 6 Jun 2019 15:12:39 +0300
+Subject: [PATCH 04/25] scsi: ufs: Allow read turbo-write attr and flags via
+ query ioctl
+
+Change-Id: I37fdfbc81b2790b00c50f9590b17c3537319a3ba
+Signed-off-by: Avri Altman <avri.altman@wdc.com>
+---
+ drivers/scsi/ufs/ufshcd.c | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)
+
+diff --git a/drivers/scsi/ufs/ufshcd.c b/drivers/scsi/ufs/ufshcd.c
+index 12d6656..c9799fb 100644
+--- a/drivers/scsi/ufs/ufshcd.c
++++ b/drivers/scsi/ufs/ufshcd.c
+@@ -9603,6 +9603,10 @@ static int ufshcd_query_ioctl(struct ufs_hba *hba, u8 lun, void __user *buffer)
+ 		case QUERY_ATTR_IDN_EE_CONTROL:
+ 		case QUERY_ATTR_IDN_EE_STATUS:
+ 		case QUERY_ATTR_IDN_SECONDS_PASSED:
++		case QUERY_ATTR_IDN_TW_FLUSH_STATUS:
++		case QUERY_ATTR_IDN_TW_AVAIL_BUF_SIZE:
++		case QUERY_ATTR_IDN_TW_LIFE_TIME_EST:
++		case QUERY_ATTR_IDN_TW_CUR_BUF_SIZE:
+ 			index = 0;
+ 			break;
+ 		case QUERY_ATTR_IDN_DYN_CAP_NEEDED:
+@@ -9655,6 +9659,9 @@ static int ufshcd_query_ioctl(struct ufs_hba *hba, u8 lun, void __user *buffer)
+ 		case QUERY_FLAG_IDN_PURGE_ENABLE:
+ 		case QUERY_FLAG_IDN_FPHYRESOURCEREMOVAL:
+ 		case QUERY_FLAG_IDN_BUSY_RTC:
++		case QUERY_FLAG_IDN_TW_EN:
++		case QUERY_FLAG_IDN_TW_FLUSH:
++		case QUERY_FLAG_IDN_TW_FLUSH_HIBERN:
+ 			break;
+ 		default:
+ 			goto out_einval;
+@@ -9662,6 +9669,30 @@ static int ufshcd_query_ioctl(struct ufs_hba *hba, u8 lun, void __user *buffer)
+ 		err = ufshcd_query_flag_retry(hba, ioctl_data->opcode,
+ 			ioctl_data->idn, &flag);
+ 		break;
++	case UPIU_QUERY_OPCODE_CLEAR_FLAG:
++	case UPIU_QUERY_OPCODE_SET_FLAG:
++	case UPIU_QUERY_OPCODE_TOGGLE_FLAG:
++		err = copy_from_user(&flag,
++				     buffer +
++				     sizeof(struct ufs_ioctl_query_data),
++				     sizeof(bool));
++		if (err) {
++			dev_err(hba->dev,
++				"Failed copying buffer from user, err %d\n",
++				err);
++			goto out_release_mem;
++		}
++		switch (ioctl_data->idn) {
++		case QUERY_FLAG_IDN_TW_EN:
++		case QUERY_FLAG_IDN_TW_FLUSH:
++		case QUERY_FLAG_IDN_TW_FLUSH_HIBERN:
++			break;
++		default:
++			goto out_einval;
++		}
++		err = ufshcd_query_flag_retry(hba, ioctl_data->opcode,
++					      ioctl_data->idn, &flag);
++		break;
+ 	default:
+ 		goto out_einval;
+ 	}
+@@ -9692,6 +9723,9 @@ static int ufshcd_query_ioctl(struct ufs_hba *hba, u8 lun, void __user *buffer)
+ 		data_ptr = &flag;
+ 		break;
+ 	case UPIU_QUERY_OPCODE_WRITE_ATTR:
++	case UPIU_QUERY_OPCODE_CLEAR_FLAG:
++	case UPIU_QUERY_OPCODE_SET_FLAG:
++	case UPIU_QUERY_OPCODE_TOGGLE_FLAG:
+ 		goto out_release_mem;
+ 	default:
+ 		goto out_einval;
+-- 
+2.7.4
+
